@@ -42,15 +42,3 @@ SQLite
 📌 Project Purpose
 
 This project was developed to demonstrate full-stack web development concepts including backend integration, database management, user authentication, session handling, and dynamic frontend rendering.
-
-If you want, I can also create:
-
-✅ A more professional README version
-
-✅ A student/portfolio-focused version
-
-✅ Setup & installation steps section
-
-✅ API routes documentation section
-
-Do you like this personality?
