@@ -1,392 +1,286 @@
-# Zaiqa-On-Wheels-Food-and-groceries-ordering-website
-# ---------------Zaiqa-On-Wheels 🍽️🛒----------------
-
-Food & Grocery Ordering Web Application
+# Zaiqa On Wheels 🍽️🛒
+### Food & Grocery Ordering Web Application
 
 Zaiqa On Wheels is a full-stack food and grocery ordering platform that allows users to browse restaurant menus and grocery items, manage their cart, place orders, and track deliveries through a secure and responsive interface.
 
 The system demonstrates a complete end-to-end web solution, integrating:
+- Frontend user interface
+- Backend API services
+- Authentication and authorization
+- Database management
+- Transaction control
 
-Frontend user interface
+> Built using **Python (Flask)**, **HTML**, **CSS**, **JavaScript**, and **SQLite** — showcasing practical concepts from Web Development and Database Management Systems (DBMS).
 
-Backend API services
+---
 
-Authentication and authorization
+## 🚀 Key Features
 
-Database management
+### 🔐 User Authentication
+- Secure user registration and login
+- JWT-based authentication
+- Token expiration after 24 hours
+- Protected API routes using Bearer tokens
 
-Transaction control
-
-The project is built using Python (Flask), HTML, CSS, JavaScript, and SQLite, and showcases practical concepts from Web Development and Database Management Systems (DBMS).
-
-🚀 Key Features
-🔐 User Authentication
-
-Secure user registration and login
-
-JWT-based authentication
-
-Token expiration after 24 hours
-
-Protected API routes using Bearer tokens
-
-🛒 Cart Management
-
+### 🛒 Cart Management
 Users can:
+- Add items to their cart
+- Remove items from cart
+- Update item quantities
+- View cart before checkout
 
-Add items to their cart
-
-Remove items from cart
-
-Update item quantities
-
-View cart before checkout
-
-🍔 Food & Grocery Browsing
-
+### 🍔 Food & Grocery Browsing
 The platform supports two types of ordering:
 
-Restaurant Ordering
+**Restaurant Ordering** — Users can:
+- Browse restaurant menus
+- Select menu items
+- Apply promotions
+- Place restaurant orders
 
-Users can:
+**Produce / Grocery Ordering** — Users can:
+- Browse available grocery items
+- Add produce to cart
+- Place grocery orders
 
-Browse restaurant menus
-
-Select menu items
-
-Apply promotions
-
-Place restaurant orders
-
-Produce / Grocery Ordering
-
-Users can:
-
-Browse available grocery items
-
-Add produce to cart
-
-Place grocery orders
-
-📦 Order Management
-
+### 📦 Order Management
 Customers can:
+- Place orders
+- Track delivery status
+- View previous order history
+- Earn loyalty points from purchases
 
-Place orders
-
-Track delivery status
-
-View previous order history
-
-Earn loyalty points from purchases
-
-🗂️ Admin Panel
-
+### 🗂️ Admin Panel
 Admins have full system control including:
+- Approving riders
+- Approving restaurants
+- Managing promotions
+- Monitoring audit logs
+- Managing platform users
 
-Approving riders
-
-Approving restaurants
-
-Managing promotions
-
-Monitoring audit logs
-
-Managing platform users
-
-👨‍🍳 Restaurant Manager Tools
-
+### 👨‍🍳 Restaurant Manager Tools
 Managers can:
+- Manage their restaurant
+- Add or edit menu items
+- Create categories
+- View order statistics
 
-Manage their restaurant
-
-Add or edit menu items
-
-Create categories
-
-View order statistics
-
-🚴 Rider Delivery System
-
+### 🚴 Rider Delivery System
 Riders can:
+- View available delivery orders
+- Accept deliveries
+- Mark deliveries as completed
+- Chat with customers
 
-View available delivery orders
-
-Accept deliveries
-
-Mark deliveries as completed
-
-Chat with customers
-
-📱 Responsive Design
-
+### 📱 Responsive Design
 The UI is optimized for:
+- Desktop
+- Tablets
+- Mobile devices
 
-Desktop
+---
 
-Tablets
+## 🛠️ Technology Stack
 
-Mobile devices
+| Layer | Technology |
+|---|---|
+| Frontend | HTML, CSS, JavaScript |
+| Backend | Python, Flask |
+| Database | SQLite |
+| Authentication | JWT (JSON Web Tokens) |
+| API Docs | OpenAPI / Swagger |
 
-🛠️ Technology Stack
-Frontend
+---
 
-HTML
+## ▶️ How to Run the Project
 
-CSS
-
-JavaScript
-
-Backend
-
-Python
-
-Flask
-
-Database
-
-SQLite
-
-Authentication
-
-JWT (JSON Web Tokens)
-
-API Documentation
-
-OpenAPI / Swagger specification
-
-⚙️ Installation & Setup
-1️⃣ Clone the Repository
+### 1️⃣ Clone the Repository
+```bash
 git clone https://github.com/Hassan-Ali-17/Zaiqa-On-Wheels-Food-and-groceries-ordering-website.git
-cd zaiqa-on-wheels
-2️⃣ Install Backend Dependencies
+```
+
+### 2️⃣ Navigate to the Project Folder
+```bash
+cd "Group[08]_Phase2_QuickBite"
+```
+
+### 3️⃣ Go to the Backend Directory
+```bash
 cd backend
+```
+
+### 4️⃣ Install Dependencies
+```bash
 pip install -r requirements.txt
-3️⃣ Configure Environment Variables
+```
 
+### 5️⃣ Configure Environment Variables
 Copy the example environment file:
-
+```bash
 cp .env.example .env
-
-Edit .env and set secure values:
-
+```
+Edit `.env` and set secure values:
+```
 JWT_SECRET=your_long_random_secret
 FLASK_SECRET=another_secure_secret
-4️⃣ Start the Server
-cd backend
+```
+
+### 6️⃣ Run the Application
+```bash
 python app.py
+```
 
-The server will start at:
+The server will start at `http://127.0.0.1:5000`
 
+Flask automatically serves the frontend. Open in your browser:
+```
 http://127.0.0.1:5000
+```
 
-Flask automatically serves the frontend.
+---
 
-Open in browser:
-
-http://127.0.0.1:5000
-🔑 Authentication System
+## 🔑 Authentication System
 
 All protected API endpoints require a JWT Bearer token.
 
-Header format:
-
+**Header format:**
+```
 Authorization: Bearer <token>
+```
 
-Tokens are obtained from:
-
+**Tokens are obtained from:**
+```
 POST /api/v1/login
 POST /api/v1/signup
+```
 
-Token validity:
+**Token validity:** 24 hours
 
-24 hours
-👥 User Roles & Access Control
-Role	Capabilities
-Customer	Browse restaurants and produce, place orders, chat with riders, earn loyalty points
-Rider	Accept deliveries, update order status, communicate with customers
-Manager	Manage restaurant menus, categories, and monitor statistics
-Admin	Full platform control including approvals, promotions, and system monitoring
+---
 
-Role-based access is implemented using RBAC (Role Based Access Control).
+## 👥 User Roles & Access Control
 
-🧾 Database Transaction Scenarios (DBMS Phase)
+| Role | Capabilities |
+|---|---|
+| **Customer** | Browse restaurants and produce, place orders, chat with riders, earn loyalty points |
+| **Rider** | Accept deliveries, update order status, communicate with customers |
+| **Manager** | Manage restaurant menus, categories, and monitor statistics |
+| **Admin** | Full platform control including approvals, promotions, and system monitoring |
 
-Two critical operations implement explicit transaction management using:
+> Role-based access is implemented using **RBAC (Role Based Access Control)**.
 
-BEGIN
-COMMIT
-ROLLBACK
+---
 
-This ensures data consistency and ACID compliance.
+## 🧾 Database Transaction Scenarios (DBMS Phase)
 
-Scenario 1 — Place Restaurant Order
+Two critical operations implement explicit transaction management using `BEGIN`, `COMMIT`, and `ROLLBACK` — ensuring data consistency and ACID compliance.
 
-Endpoint:
+### Scenario 1 — Place Restaurant Order
+**Endpoint:** `POST /api/v1/orders`
 
-POST /api/v1/orders
+**Transaction flow:**
+1. Insert new order
+2. Insert order items
+3. Validate promotion code
+4. Award loyalty points
+5. Commit transaction
 
-Transaction flow:
+**Rollback triggers** — The transaction rolls back if:
+- Menu item is invalid
+- Item is unavailable
+- Promotion code is expired
+- Loyalty points become negative
+- Any database error occurs
 
-Insert new order
+### Scenario 2 — Place Produce Order
+**Endpoint:** `POST /api/v1/produce/order`
 
-Insert order items
+**Transaction flow:**
+1. Insert produce order
+2. Validate produce availability
+3. Apply promotion
+4. Update loyalty points
+5. Commit transaction
 
-Validate promotion code
+**Rollback occurs if:**
+- Produce item unavailable
+- Promotion invalid
+- Loyalty underflow
+- Database error
 
-Award loyalty points
+> Rollback proof is available in: `media/rollback_demo.log`
 
-Commit transaction
+---
 
-Rollback triggers
-
-The transaction rolls back if:
-
-Menu item is invalid
-
-Item is unavailable
-
-Promotion code is expired
-
-Loyalty points become negative
-
-Any database error occurs
-
-Scenario 2 — Place Produce Order
-
-Endpoint:
-
-POST /api/v1/produce/order
-
-Transaction flow:
-
-Insert produce order
-
-Validate produce availability
-
-Apply promotion
-
-Update loyalty points
-
-Commit transaction
-
-Rollback occurs if:
-
-Produce item unavailable
-
-Promotion invalid
-
-Loyalty underflow
-
-Database error
-
-Rollback proof is available in:
-
-media/rollback_demo.log
-📂 Project Structure
+## 📂 Project Structure
+```
 zaiqa-on-wheels/
 │
-├── backend/
-│   ├── app.py
-│   │   Flask server containing:
-│   │   - API routes
-│   │   - JWT authentication
-│   │   - Role based access
-│   │   - transaction logic
+├── Group[08]_Phase2_QuickBite/
+│   ├── backend/
+│   │   ├── app.py               # Flask server (API routes, JWT auth, RBAC, transactions)
+│   │   ├── requirements.txt
+│   │   ├── schema.sql
+│   │   ├── seed.sql
+│   │   ├── swagger.yaml
+│   │   └── Backend_Explanation.pdf
 │   │
-│   ├── requirements.txt
-│   ├── schema.sql
-│   ├── seed.sql
-│   ├── swagger.yaml
-│   └── Backend_Explanation.pdf
-│
-├── frontend/
-│   └── pages/
-│       HTML, CSS and JavaScript frontend
-│
-├── media/
-│   └── rollback_demo.log
+│   ├── frontend/
+│   │   └── pages/               # HTML, CSS and JavaScript frontend
+│   │
+│   └── media/
+│       └── rollback_demo.log
 │
 ├── .env.example
 └── README.md
-🔗 API Versioning
+```
+
+---
+
+## 🔗 API Versioning
 
 The system supports both:
-
+```
 /api/v1/...
-
+```
 and a backward compatible alias:
-
+```
 /api/...
-📘 Educational Purpose
+```
 
-This project demonstrates several core computer science concepts, including:
+---
 
-Full-Stack Development
+## 📘 Educational Purpose
 
-Frontend UI design
+This project demonstrates several core computer science concepts:
 
-Backend API development
+| Area | Concepts |
+|---|---|
+| **Full-Stack Development** | Frontend UI design, backend API development, client-server interaction |
+| **Database Systems** | Schema design, SQL queries, transaction management |
+| **Security** | JWT authentication, secure session handling |
+| **Software Architecture** | REST API structure, role-based access control, modular backend design |
 
-Client-server interaction
+---
 
-Database Systems
-
-Schema design
-
-SQL queries
-
-Transaction management
-
-Security
-
-JWT authentication
-
-Secure session handling
-
-Software Architecture
-
-REST API structure
-
-Role-based access control
-
-Modular backend design
-
-📄 Documentation
+## 📄 Documentation
 
 Additional documentation includes:
+- Swagger API specification → `backend/swagger.yaml`
+- Backend architecture explanation → `backend/Backend_Explanation.pdf`
+- Transaction rollback demonstration → `media/rollback_demo.log`
 
-Swagger API specification
+---
 
-Backend architecture explanation
+## 👨‍💻 Contributors
 
-Transaction rollback demonstration
+| Name | ID |
+|---|---|
+| Hassan Ali Shah | BSCS24040 |
+| Ahsen Ali | BSCS24056 |
 
-Located in:
+---
 
-backend/swagger.yaml
-backend/Backend_Explanation.pdf
-media/rollback_demo.log
-👨‍💻 Contributors
+## ✅ Conclusion
 
-Hassan Ali Shah
-BSCS24040
-
-Ahsen Ali
-BSCS24056
-
-✅ Conclusion
-
-Zaiqa On Wheels demonstrates how a modern web application can combine:
-
-frontend development
-
-backend APIs
-
-authentication systems
-
-database management
-
-transaction handling
-
-to build a secure, scalable, and interactive food & grocery ordering platform.
+Zaiqa On Wheels demonstrates how a modern web application can combine frontend development, backend APIs, authentication systems, database management, and transaction handling to build a **secure, scalable, and interactive** food & grocery ordering platform.
