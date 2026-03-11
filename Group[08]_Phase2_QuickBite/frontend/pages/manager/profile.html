@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>QuickBite Manager — Settings</title>
+  <link rel="stylesheet" href="../../css/main.css">
+  <style>
+    .profile-header {
+      display: flex; align-items: center; gap: 1.5rem;
+      background: var(--card); border: 1px solid var(--border);
+      border-radius: 20px; padding: 2rem; margin-bottom: 1.5rem;
+    }
+    .avatar {
+      width: 80px; height: 80px; border-radius: 50%;
+      background: linear-gradient(135deg, #A855F7, #7C3AED);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 2rem; font-weight: 800; color: white;
+      font-family: 'Syne', sans-serif; flex-shrink: 0;
+    }
+    .section-card { background: var(--card); border: 1px solid var(--border); border-radius: 16px; padding: 1.5rem; margin-bottom: 1.25rem; }
+    .section-title { font-family: 'Syne', sans-serif; font-weight: 700; font-size: 1rem; margin-bottom: 1.25rem; padding-bottom: 0.75rem; border-bottom: 1px solid var(--border); }
+    .info-row { display: flex; justify-content: space-between; align-items: center; padding: 0.65rem 0; border-bottom: 1px solid var(--border); font-size: 0.9rem; }
+    .info-row:last-child { border-bottom: none; }
+    .info-label { color: var(--text-muted); }
+    .info-value { font-weight: 600; }
+    .rest-status-banner { border-radius: 12px; padding: 1rem 1.25rem; margin-bottom: 1.25rem; font-size: 0.9rem; display: flex; align-items: center; gap: 0.75rem; }
+    .status-pending { background: rgba(245,158,11,0.1); border: 1px solid rgba(245,158,11,0.3); color: var(--warning); }
+    .status-approved { background: rgba(34,197,94,0.1); border: 1px solid rgba(34,197,94,0.3); color: #22C55E; }
+    .status-rejected { background: rgba(239,68,68,0.1); border: 1px solid rgba(239,68,68,0.3); color: var(--danger); }
+  </style>
+</head>
+<body>
+<nav class="navbar">
+  <a href="dashboard.html" class="nav-logo">Quick<span>Bite</span> <span style="font-size:0.7rem;background:rgba(168,85,247,0.15);color:#A855F7;padding:2px 8px;border-radius:4px;margin-left:4px;">MANAGER</span></a>
+  <div class="nav-user" id="nav-user"></div>
+  <button class="theme-toggle" id="theme-toggle-btn" onclick="toggleTheme()">☀️ Light</button>
+</nav>
+
+<div class="app-layout">
+  <nav class="sidebar">
+    <div class="sidebar-section">Restaurant</div>
+    <a href="dashboard.html" class="sidebar-link"><span class="sidebar-icon">📊</span> Dashboard</a>
+    <a href="menu-manager.html" class="sidebar-link"><span class="sidebar-icon">🍽️</span> Menu Manager</a>
+    <a href="orders.html" class="sidebar-link"><span class="sidebar-icon">📦</span> Orders</a>
+    <a href="profile.html" class="sidebar-link active"><span class="sidebar-icon">⚙️</span> Settings</a>
+    <div style="margin-top:auto;padding-top:2rem;">
+      <button class="sidebar-link" onclick="logout()" style="width:100%;background:none;border:none;cursor:pointer;color:var(--danger);">
+        <span class="sidebar-icon">🚪</span> Logout
+      </button>
+    </div>
+  </nav>
+
+  <main class="main-content">
+    <div class="page-title">Settings</div>
+    <div class="page-subtitle" style="margin-bottom:1.5rem;">Manage your account and restaurant info</div>
+
+    <!-- Profile Header -->
+    <div class="profile-header">
+      <div class="avatar" id="avatar-initials">M</div>
+      <div>
+        <div style="font-family:'Syne',sans-serif;font-weight:800;font-size:1.3rem;" id="profile-name">Loading...</div>
+        <div style="color:var(--text-muted);font-size:0.85rem;margin-top:0.25rem;" id="profile-email">—</div>
+        <div style="margin-top:0.5rem;">
+          <span style="background:rgba(168,85,247,0.15);color:#A855F7;padding:3px 10px;border-radius:20px;font-size:0.75rem;font-weight:700;">RESTAURANT MANAGER</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Restaurant Status -->
+    <div id="rest-status-banner"></div>
+
+    <!-- Account Info -->
+    <div class="section-card">
+      <div class="section-title">👤 Account Information</div>
+      <div class="info-row"><span class="info-label">Full Name</span><span class="info-value" id="info-name">—</span></div>
+      <div class="info-row"><span class="info-label">Email</span><span class="info-value" id="info-email">—</span></div>
+      <div class="info-row"><span class="info-label">Phone</span><span class="info-value" id="info-phone">—</span></div>
+      <div class="info-row"><span class="info-label">Role</span><span class="info-value">Restaurant Manager</span></div>
+    </div>
+
+    <!-- Restaurant Info -->
+    <div class="section-card" id="restaurant-info-card">
+      <div class="section-title">🍽️ Restaurant Information</div>
+      <div id="restaurant-info-body"><div class="loader"><div class="spinner"></div></div></div>
+    </div>
+
+    <!-- Edit Restaurant -->
+    <div class="section-card">
+      <div class="section-title">✏️ Update Restaurant Details</div>
+      <div class="form-group">
+        <label class="form-label">Restaurant Name</label>
+        <input type="text" id="edit-name" class="form-control" placeholder="Restaurant name">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Location</label>
+        <input type="text" id="edit-location" class="form-control" placeholder="Address / area">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Phone</label>
+        <input type="text" id="edit-phone" class="form-control" placeholder="03xx-xxxxxxx">
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;">
+        <div class="form-group">
+          <label class="form-label">Delivery Time (min)</label>
+          <input type="number" id="edit-delivery" class="form-control" min="10" max="120">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Min Order (PKR)</label>
+          <input type="number" id="edit-minorder" class="form-control" min="0">
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Description</label>
+        <textarea id="edit-desc" class="form-control" rows="3" placeholder="Tell customers about your restaurant..."></textarea>
+      </div>
+      <button class="btn btn-primary" onclick="saveRestaurant()">Save Changes</button>
+    </div>
+
+    <!-- Danger Zone -->
+    <div class="section-card" style="border-color:rgba(239,68,68,0.3);">
+      <div class="section-title" style="color:var(--danger);">⚠️ Account Actions</div>
+      <div style="display:flex;gap:0.75rem;flex-wrap:wrap;">
+        <button class="btn btn-outline" onclick="logout()">🚪 Logout</button>
+      </div>
+    </div>
+  </main>
+</div>
+
+<div id="toast"></div>
+<script src="../../js/shared.js"></script>
+<script>
+  const user = requireAuth('manager');
+  renderUserBadge('nav-user');
+
+  // Fill account info from session
+  document.getElementById('profile-name').textContent = user.name || 'Manager';
+  document.getElementById('profile-email').textContent = user.email || '';
+  document.getElementById('info-name').textContent = user.name || '—';
+  document.getElementById('info-email').textContent = user.email || '—';
+  document.getElementById('info-phone').textContent = user.phone || '—';
+  document.getElementById('avatar-initials').textContent = (user.name || 'M')[0].toUpperCase();
+
+  async function loadRestaurant() {
+    if (!user.restaurant_id) {
+      document.getElementById('restaurant-info-body').innerHTML = '<p style="color:var(--text-muted);">No restaurant linked yet. <a href="setup.html" style="color:var(--primary);">Set up your restaurant →</a></p>';
+      document.getElementById('rest-status-banner').innerHTML = '';
+      return;
+    }
+
+    const r = await GET(`/restaurants/${user.restaurant_id}`);
+    if (!r) return;
+
+    // Status banner
+    const bannerClass = r.status === 'approved' ? 'status-approved' : r.status === 'pending' ? 'status-pending' : 'status-rejected';
+    const bannerIcon = r.status === 'approved' ? '✅' : r.status === 'pending' ? '⏳' : '❌';
+    const bannerMsg = r.status === 'approved' ? 'Your restaurant is live and accepting orders!'
+                    : r.status === 'pending' ? 'Your restaurant is under review by admin. Usually approved within 24 hours.'
+                    : 'Your restaurant was rejected. Contact support for more information.';
+    document.getElementById('rest-status-banner').innerHTML = `
+      <div class="rest-status-banner ${bannerClass}">
+        <span style="font-size:1.3rem;">${bannerIcon}</span>
+        <span>${bannerMsg}</span>
+      </div>`;
+
+    // Info card
+    document.getElementById('restaurant-info-body').innerHTML = `
+      <div class="info-row"><span class="info-label">Restaurant Name</span><span class="info-value">${r.name}</span></div>
+      <div class="info-row"><span class="info-label">Cuisine</span><span class="info-value">${r.cuisine || '—'}</span></div>
+      <div class="info-row"><span class="info-label">Location</span><span class="info-value">${r.location || '—'}</span></div>
+      <div class="info-row"><span class="info-label">Phone</span><span class="info-value">${r.phone || '—'}</span></div>
+      <div class="info-row"><span class="info-label">Delivery Time</span><span class="info-value">${r.delivery_time} min</span></div>
+      <div class="info-row"><span class="info-label">Min Order</span><span class="info-value">PKR ${r.min_order || 0}</span></div>
+      <div class="info-row"><span class="info-label">Rating</span><span class="info-value">⭐ ${r.rating}</span></div>
+      <div class="info-row"><span class="info-label">Status</span><span class="info-value">${statusBadge(r.status)}</span></div>`;
+
+    // Pre-fill edit form
+    document.getElementById('edit-name').value = r.name || '';
+    document.getElementById('edit-location').value = r.location || '';
+    document.getElementById('edit-phone').value = r.phone || '';
+    document.getElementById('edit-delivery').value = r.delivery_time || 30;
+    document.getElementById('edit-minorder').value = r.min_order || 0;
+    document.getElementById('edit-desc').value = r.description || '';
+  }
+
+  async function saveRestaurant() {
+    if (!user.restaurant_id) { toast('No restaurant linked', 'error'); return; }
+    const res = await PUT(`/manager/restaurant/${user.restaurant_id}`, {
+      name: document.getElementById('edit-name').value,
+      location: document.getElementById('edit-location').value,
+      phone: document.getElementById('edit-phone').value,
+      delivery_time: parseInt(document.getElementById('edit-delivery').value) || 30,
+      min_order: parseFloat(document.getElementById('edit-minorder').value) || 0,
+      description: document.getElementById('edit-desc').value,
+      manager_id: user.user_id
+    });
+    if (res?.success) { toast('Restaurant updated!'); loadRestaurant(); }
+    else toast('Update failed', 'error');
+  }
+
+  loadRestaurant();
+</script>
+</body>
+</html>

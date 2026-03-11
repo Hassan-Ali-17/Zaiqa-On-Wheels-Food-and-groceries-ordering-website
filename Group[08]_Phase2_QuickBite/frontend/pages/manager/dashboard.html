@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>QuickBite Manager — Dashboard</title>
+  <link rel="stylesheet" href="../../css/main.css">
+</head>
+<body>
+<nav class="navbar">
+  <a href="dashboard.html" class="nav-logo">Quick<span>Bite</span> <span style="font-size:0.7rem;background:rgba(168,85,247,0.15);color:#A855F7;padding:2px 8px;border-radius:4px;margin-left:4px;">MANAGER</span></a>
+  <div class="nav-user" id="nav-user"></div>
+  <button class="theme-toggle" id="theme-toggle-btn" onclick="toggleTheme()">☀️ Light</button>
+</nav>
+<div class="app-layout">
+  <nav class="sidebar">
+    <div class="sidebar-section">Restaurant</div>
+    <a href="dashboard.html" class="sidebar-link active"><span class="sidebar-icon">📊</span> Dashboard</a>
+    <a href="menu-manager.html" class="sidebar-link"><span class="sidebar-icon">🍽️</span> Menu Manager</a>
+    <a href="orders.html" class="sidebar-link"><span class="sidebar-icon">📦</span> Orders</a>
+    <a href="profile.html" class="sidebar-link"><span class="sidebar-icon">⚙️</span> Settings</a>
+    <div style="margin-top:auto;padding-top:2rem;">
+      <button class="sidebar-link" onclick="logout()" style="width:100%;background:none;border:none;cursor:pointer;color:var(--danger);">
+        <span class="sidebar-icon">🚪</span> Logout
+      </button>
+    </div>
+  </nav>
+  <main class="main-content">
+    <div class="page-header" style="display:flex;justify-content:space-between;align-items:flex-start;">
+      <div>
+        <div class="page-title" id="rest-name">My Restaurant</div>
+        <div class="page-subtitle" id="rest-status-line">Loading...</div>
+      </div>
+      <div id="rest-status-badge"></div>
+    </div>
+
+    <div class="stats-grid" id="stats-grid">
+      <div class="loader"><div class="spinner"></div></div>
+    </div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:1.5rem;">
+      <div class="card">
+        <div style="font-family:'Syne',sans-serif;font-weight:700;margin-bottom:1rem;">Recent Orders</div>
+        <div id="recent-orders"><div class="loader"><div class="spinner"></div></div></div>
+        <a href="orders.html" style="display:block;text-align:center;margin-top:1rem;color:var(--primary);font-size:0.85rem;">View all →</a>
+      </div>
+      <div class="card">
+        <div style="font-family:'Syne',sans-serif;font-weight:700;margin-bottom:1rem;">Revenue Breakdown</div>
+        <div id="revenue-breakdown"></div>
+      </div>
+    </div>
+  </main>
+</div>
+<div id="toast"></div>
+<script src="../../js/shared.js"></script>
+<script>
+  const user = requireAuth('manager');
+  if (!user?.restaurant_id) window.location.href='setup.html';
+  renderUserBadge('nav-user');
+
+  const RID = user.restaurant_id;
+
+  async function loadDashboard() {
+    const [rest, stats, orders] = await Promise.all([
+      GET(`/restaurants/${RID}`),
+      GET(`/manager/restaurant/${RID}/stats`),
+      GET(`/manager/restaurant/${RID}/orders`)
+    ]);
+
+    if (rest) {
+      document.getElementById('rest-name').textContent = rest.name;
+      document.getElementById('rest-status-line').textContent = `${rest.cuisine} • ${rest.location}`;
+      document.getElementById('rest-status-badge').innerHTML = statusBadge(rest.status);
+      user.restaurant_status = rest.status;
+      setUser(user);
+    }
+
+    if (stats) {
+      document.getElementById('stats-grid').innerHTML = `
+        <div class="stat-card"><div class="stat-icon">📦</div><div class="stat-label">Total Orders</div><div class="stat-value">${stats.total_orders}</div></div>
+        <div class="stat-card"><div class="stat-icon">💰</div><div class="stat-label">Gross Revenue</div><div class="stat-value" style="color:var(--success);">PKR ${Math.round(stats.revenue/1000)||0}K</div></div>
+        <div class="stat-card"><div class="stat-icon">🏢</div><div class="stat-label">Platform Fee (5%)</div><div class="stat-value" style="color:var(--warning);">PKR ${Math.round(stats.platform_fee)||0}</div></div>
+        <div class="stat-card"><div class="stat-icon">✅</div><div class="stat-label">Net Earnings</div><div class="stat-value" style="color:var(--primary);">PKR ${Math.round(stats.net_revenue/1000)||0}K</div></div>`;
+
+      document.getElementById('revenue-breakdown').innerHTML = `
+        <div style="display:flex;flex-direction:column;gap:1rem;">
+          <div style="background:var(--bg3);border-radius:12px;padding:1rem;">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.5rem;">
+              <span style="font-size:0.85rem;color:var(--text-muted);">Gross Revenue</span>
+              <span style="font-weight:700;">PKR ${Math.round(stats.revenue).toLocaleString()}</span>
+            </div>
+            <div style="height:4px;background:var(--border);border-radius:2px;"><div style="height:4px;background:var(--success);border-radius:2px;width:100%;"></div></div>
+          </div>
+          <div style="background:var(--bg3);border-radius:12px;padding:1rem;">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.5rem;">
+              <span style="font-size:0.85rem;color:var(--text-muted);">Platform Fee (5%)</span>
+              <span style="font-weight:700;color:var(--warning);">- PKR ${Math.round(stats.platform_fee).toLocaleString()}</span>
+            </div>
+            <div style="height:4px;background:var(--border);border-radius:2px;"><div style="height:4px;background:var(--warning);border-radius:2px;width:5%;"></div></div>
+          </div>
+          <div style="background:rgba(255,77,0,0.08);border:1px solid rgba(255,77,0,0.2);border-radius:12px;padding:1rem;">
+            <div style="display:flex;justify-content:space-between;align-items:center;">
+              <span style="font-size:0.85rem;font-weight:600;">Your Net Earnings</span>
+              <span style="font-weight:800;font-family:'Syne',sans-serif;color:var(--primary);">PKR ${Math.round(stats.net_revenue).toLocaleString()}</span>
+            </div>
+          </div>
+        </div>`;
+    }
+
+    if (orders?.length) {
+      const recent = orders.slice(0,5);
+      document.getElementById('recent-orders').innerHTML = recent.map(o=>`
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:0.6rem 0;border-bottom:1px solid var(--border);">
+          <div><div style="font-size:0.9rem;font-weight:500;">#${o.id} — ${o.customer_name}</div><div style="font-size:0.75rem;color:var(--text-muted);">${timeAgo(o.created_at)}</div></div>
+          <div>${statusBadge(o.status)}</div>
+        </div>`).join('');
+    } else {
+      document.getElementById('recent-orders').innerHTML='<p style="color:var(--text-muted);font-size:0.9rem;">No orders yet</p>';
+    }
+  }
+
+  loadDashboard();
+  setInterval(loadDashboard,20000);
+</script>
+</body>
+</html>

@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>QuickBite — Loyalty Points</title>
+  <link rel="stylesheet" href="../../css/main.css">
+  <style>
+    .loyalty-hero {
+      background: linear-gradient(135deg, rgba(168,85,247,0.2), rgba(168,85,247,0.05));
+      border: 1px solid rgba(168,85,247,0.3);
+      border-radius: 24px; padding: 2.5rem 2rem; text-align: center; margin-bottom: 2rem;
+    }
+    .points-display { font-family:'Syne',sans-serif; font-size:4rem; font-weight:800; color:#A855F7; line-height:1; }
+    .points-sub { color:var(--text-muted); margin-top:0.5rem; font-size:0.95rem; }
+    .tier-badge { display:inline-block; padding:0.4rem 1.2rem; border-radius:20px; font-weight:700; font-size:0.85rem; margin-top:1rem; }
+    .tier-bronze { background:rgba(180,120,60,0.2); color:#B4783C; border:1px solid rgba(180,120,60,0.3); }
+    .tier-silver { background:rgba(160,160,160,0.2); color:#aaa; border:1px solid rgba(160,160,160,0.3); }
+    .tier-gold   { background:rgba(245,158,11,0.2); color:#F59E0B; border:1px solid rgba(245,158,11,0.3); }
+    .tier-platinum { background:rgba(168,85,247,0.2); color:#A855F7; border:1px solid rgba(168,85,247,0.3); }
+
+    .progress-bar-wrap { background:var(--bg3); border-radius:100px; height:10px; margin:1rem 0 0.4rem; overflow:hidden; }
+    .progress-bar-fill { height:100%; border-radius:100px; background:linear-gradient(90deg,#A855F7,#C084FC); transition:width 0.6s ease; }
+
+    .how-it-works { display:grid; grid-template-columns:repeat(3,1fr); gap:1rem; margin-bottom:2rem; }
+    .hiw-card { background:var(--card); border:1px solid var(--border); border-radius:16px; padding:1.25rem; text-align:center; }
+    .hiw-icon { font-size:2rem; margin-bottom:0.6rem; }
+    .hiw-title { font-family:'Syne',sans-serif; font-weight:700; font-size:0.9rem; margin-bottom:0.3rem; }
+    .hiw-desc { font-size:0.78rem; color:var(--text-muted); line-height:1.5; }
+
+    .txn-item { display:flex; align-items:center; gap:1rem; padding:0.85rem 0; border-bottom:1px solid var(--border); }
+    .txn-item:last-child { border-bottom:none; }
+    .txn-icon { width:38px; height:38px; border-radius:10px; display:flex; align-items:center; justify-content:center; font-size:1.1rem; flex-shrink:0; }
+    .txn-earn  { background:rgba(34,197,94,0.15); }
+    .txn-redeem { background:rgba(168,85,247,0.15); }
+    .txn-info { flex:1; }
+    .txn-desc { font-size:0.85rem; font-weight:600; }
+    .txn-date { font-size:0.75rem; color:var(--text-muted); margin-top:0.2rem; }
+    .txn-pts { font-family:'Syne',sans-serif; font-weight:800; font-size:1rem; }
+    .txn-pts.earn { color:#22C55E; }
+    .txn-pts.redeem { color:#A855F7; }
+
+    .section-card { background:var(--card); border:1px solid var(--border); border-radius:16px; padding:1.5rem; margin-bottom:1.25rem; }
+    .section-title { font-family:'Syne',sans-serif; font-weight:700; margin-bottom:1.25rem; padding-bottom:0.75rem; border-bottom:1px solid var(--border); }
+
+    @media(max-width:600px) { .how-it-works { grid-template-columns:1fr; } }
+  </style>
+</head>
+<body>
+<nav class="navbar">
+  <a href="home.html" class="nav-logo">Quick<span>Bite</span></a>
+  <div class="nav-links">
+    <a href="home.html">🏠 Home</a>
+    <a href="orders.html">📦 Orders</a>
+    <a href="loyalty.html" class="active" style="color:#A855F7;">⭐ Loyalty</a>
+    <a href="profile.html">👤 Profile</a>
+  </div>
+  <div style="display:flex;align-items:center;gap:0.75rem;">
+    <button class="theme-toggle" id="theme-toggle-btn" onclick="toggleTheme()">☀️ Light</button>
+    <div class="nav-user" id="nav-user"></div>
+  </div>
+</nav>
+
+<div style="max-width:720px;margin:2rem auto;padding:0 1.5rem;">
+
+  <!-- Hero -->
+  <div class="loyalty-hero">
+    <div style="font-size:2.5rem;margin-bottom:0.75rem;">⭐</div>
+    <div class="points-display" id="pts-display">0</div>
+    <div style="color:var(--text-muted);font-size:0.85rem;margin-top:0.3rem;">Available Points</div>
+    <button onclick="loadLoyalty()" style="margin-top:0.75rem;background:rgba(168,85,247,0.15);border:1px solid rgba(168,85,247,0.4);color:#A855F7;border-radius:8px;padding:0.3rem 1.2rem;cursor:pointer;font-size:0.8rem;">🔄 Refresh</button>
+    <div style="margin-top:0.75rem;font-size:0.85rem;color:var(--text-muted);">Lifetime: <span id="lifetime-pts" style="color:#A855F7;font-weight:700;">0 pts</span></div>
+    <div class="tier-badge tier-bronze" id="tier-badge">🥉 Bronze Member</div>
+    <div class="progress-bar-wrap" style="max-width:300px;margin:1rem auto 0.4rem;">
+      <div class="progress-bar-fill" id="tier-progress" style="width:0%"></div>
+    </div>
+    <div style="font-size:0.75rem;color:var(--text-muted);" id="tier-next">0 pts to next tier</div>
+  </div>
+
+  <!-- How It Works -->
+  <div class="how-it-works">
+    <div class="hiw-card">
+      <div class="hiw-icon">🛒</div>
+      <div class="hiw-title">Order & Earn</div>
+      <div class="hiw-desc">Get 1 point for every PKR 100 you spend on any order</div>
+    </div>
+    <div class="hiw-card">
+      <div class="hiw-icon">💰</div>
+      <div class="hiw-title">Redeem</div>
+      <div class="hiw-desc">Use points at checkout — 1 point = PKR 1 off your order</div>
+    </div>
+    <div class="hiw-card">
+      <div class="hiw-icon">🏆</div>
+      <div class="hiw-title">Level Up</div>
+      <div class="hiw-desc">Earn Bronze → Silver → Gold → Platinum tiers for bigger perks</div>
+    </div>
+  </div>
+
+  <!-- Tier Progress -->
+  <div class="section-card">
+    <div class="section-title">🏆 Membership Tiers</div>
+    <div style="display:flex;flex-direction:column;gap:0.75rem;">
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:0.75rem 1rem;border-radius:12px;" id="tier-row-bronze">
+        <div style="display:flex;align-items:center;gap:0.75rem;">
+          <span style="font-size:1.3rem;">🥉</span>
+          <div><div style="font-weight:700;font-size:0.9rem;">Bronze</div><div style="font-size:0.75rem;color:var(--text-muted);">0 – 499 lifetime pts</div></div>
+        </div>
+        <span style="font-size:0.8rem;color:var(--text-muted);">1x earn rate</span>
+      </div>
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:0.75rem 1rem;border-radius:12px;" id="tier-row-silver">
+        <div style="display:flex;align-items:center;gap:0.75rem;">
+          <span style="font-size:1.3rem;">🥈</span>
+          <div><div style="font-weight:700;font-size:0.9rem;">Silver</div><div style="font-size:0.75rem;color:var(--text-muted);">500 – 1999 lifetime pts</div></div>
+        </div>
+        <span style="font-size:0.8rem;color:var(--text-muted);">1.2x earn rate</span>
+      </div>
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:0.75rem 1rem;border-radius:12px;" id="tier-row-gold">
+        <div style="display:flex;align-items:center;gap:0.75rem;">
+          <span style="font-size:1.3rem;">🥇</span>
+          <div><div style="font-weight:700;font-size:0.9rem;">Gold</div><div style="font-size:0.75rem;color:var(--text-muted);">2000 – 4999 lifetime pts</div></div>
+        </div>
+        <span style="font-size:0.8rem;color:var(--text-muted);">1.5x earn rate + free delivery</span>
+      </div>
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:0.75rem 1rem;border-radius:12px;" id="tier-row-platinum">
+        <div style="display:flex;align-items:center;gap:0.75rem;">
+          <span style="font-size:1.3rem;">💎</span>
+          <div><div style="font-weight:700;font-size:0.9rem;">Platinum</div><div style="font-size:0.75rem;color:var(--text-muted);">5000+ lifetime pts</div></div>
+        </div>
+        <span style="font-size:0.8rem;color:var(--text-muted);">2x earn rate + priority support</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Transaction History -->
+  <div class="section-card">
+    <div class="section-title">📜 Points History</div>
+    <div id="txn-list"><div class="loader"><div class="spinner"></div></div></div>
+  </div>
+
+  <a href="home.html" class="btn btn-primary btn-full" style="text-align:center;display:block;">🛒 Order Now & Earn Points</a>
+</div>
+
+<div id="toast"></div>
+<script src="../../js/shared.js"></script>
+<script>
+  const user = requireAuth('customer');
+  renderUserBadge('nav-user');
+
+  const TIERS = [
+    { name:'Bronze', min:0,    max:499,  cls:'tier-bronze', icon:'🥉', row:'bronze' },
+    { name:'Silver', min:500,  max:1999, cls:'tier-silver', icon:'🥈', row:'silver' },
+    { name:'Gold',   min:2000, max:4999, cls:'tier-gold',   icon:'🥇', row:'gold' },
+    { name:'Platinum',min:5000,max:99999,cls:'tier-platinum',icon:'💎',row:'platinum' },
+  ];
+
+  function getTier(pts) { return TIERS.find(t => pts >= t.min && pts <= t.max) || TIERS[0]; }
+
+  async function loadLoyalty() {
+    const txnEl = document.getElementById('txn-list');
+    const data = await GET(`/loyalty/${user.user_id}`);
+    if (!data) {
+      txnEl.innerHTML = '<div style="text-align:center;color:var(--danger);padding:2rem 0;">⚠️ Could not connect to backend. Make sure python app.py is running.</div>';
+      return;
+    }
+
+    const pts = data.total_points || 0;
+    const lifetime = data.lifetime_points || 0;
+    document.getElementById('pts-display').textContent = pts.toLocaleString();
+    document.getElementById('lifetime-pts').textContent = `${lifetime.toLocaleString()} pts`;
+
+    // Tier
+    const tier = getTier(lifetime);
+    const badge = document.getElementById('tier-badge');
+    badge.textContent = `${tier.icon} ${tier.name} Member`;
+    badge.className = `tier-badge ${tier.cls}`;
+
+    // Progress to next tier
+    const nextTier = TIERS[TIERS.indexOf(tier) + 1];
+    if (nextTier) {
+      const progress = ((lifetime - tier.min) / (nextTier.min - tier.min)) * 100;
+      document.getElementById('tier-progress').style.width = `${Math.min(progress, 100)}%`;
+      document.getElementById('tier-next').textContent = `${nextTier.min - lifetime} pts to ${nextTier.icon} ${nextTier.name}`;
+    } else {
+      document.getElementById('tier-progress').style.width = '100%';
+      document.getElementById('tier-next').textContent = '🎉 Maximum tier reached!';
+    }
+
+    // Highlight active tier row
+    TIERS.forEach(t => {
+      const row = document.getElementById(`tier-row-${t.row}`);
+      if (row) row.style.background = t.name === tier.name ? 'var(--bg3)' : 'transparent';
+    });
+
+    // Transaction list
+    const txns = data.transactions || [];
+    // NOTE: txnEl already declared above - do NOT redeclare it here
+    if (!txns.length) {
+      txnEl.innerHTML = '<div style="text-align:center;color:var(--text-muted);padding:2rem 0;">No transactions yet. Place an order to earn points!</div>';
+      return;
+    }
+    txnEl.innerHTML = txns.map(t => {
+      const isEarn = t.type === 'earn';
+      const date = new Date(t.created_at).toLocaleDateString('en-PK', {day:'numeric',month:'short',year:'numeric'});
+      return `
+        <div class="txn-item">
+          <div class="txn-icon ${isEarn ? 'txn-earn' : 'txn-redeem'}">${isEarn ? '⭐' : '🎁'}</div>
+          <div class="txn-info">
+            <div class="txn-desc">${t.description}</div>
+            <div class="txn-date">${date}</div>
+          </div>
+          <div class="txn-pts ${isEarn ? 'earn' : 'redeem'}">${isEarn ? '+' : ''}${t.points} pts</div>
+        </div>`;
+    }).join('');
+  }
+
+  loadLoyalty();
+  setInterval(loadLoyalty, 15000); // auto-refresh every 15s
+</script>
+</body>
+</html>

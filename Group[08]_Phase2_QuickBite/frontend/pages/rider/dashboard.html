@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>QuickBite Rider — Dashboard</title>
+  <link rel="stylesheet" href="../../css/main.css">
+  <style>
+    .order-card { background:var(--card); border:1px solid var(--border); border-radius:16px; padding:1.25rem; margin-bottom:1rem; }
+    .order-card.available { border-color: rgba(34,197,94,0.3); }
+    .order-header { display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:0.75rem; }
+    .pickup-info { display:flex; align-items:flex-start; gap:0.5rem; font-size:0.9rem; margin-bottom:0.5rem; }
+    .info-icon { flex-shrink:0; }
+    .action-bar { display:flex; gap:0.75rem; margin-top:1rem; }
+  </style>
+</head>
+<body>
+<nav class="navbar">
+  <a href="dashboard.html" class="nav-logo">Quick<span>Bite</span> <span style="font-size:0.7rem;color:var(--success);background:rgba(34,197,94,0.15);padding:2px 8px;border-radius:4px;margin-left:4px;">RIDER</span></a>
+  <div class="nav-links">
+    <a href="dashboard.html" class="active">🏠 Dashboard</a>
+    <a href="my-orders.html">📦 My Deliveries</a>
+    <a href="profile.html">👤 Profile</a>
+  </div>
+  <div class="nav-user" id="nav-user"></div>
+  <button class="theme-toggle" id="theme-toggle-btn" onclick="toggleTheme()">☀️ Light</button>
+</nav>
+
+<div style="padding:2rem;max-width:900px;margin:0 auto;">
+  <div class="page-header">
+    <div class="page-title">Rider Dashboard</div>
+    <div class="page-subtitle">Find and manage your deliveries</div>
+  </div>
+
+  <div class="stats-grid" id="rider-stats"></div>
+
+  <div class="tabs" style="margin-bottom:1.5rem;">
+    <button class="tab-btn active" onclick="switchTab('available')">🟢 Available Orders</button>
+    <button class="tab-btn" onclick="switchTab('active')">🔄 My Active Orders</button>
+  </div>
+
+  <div id="available-section">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;">
+      <div style="color:var(--text-muted);font-size:0.9rem;">Orders waiting for a rider</div>
+      <button class="btn btn-outline btn-sm" onclick="loadAvailable()">↻ Refresh</button>
+    </div>
+    <div id="available-orders"><div class="loader"><div class="spinner"></div></div></div>
+  </div>
+
+  <div id="active-section" style="display:none;">
+    <div id="active-orders"><div class="loader"><div class="spinner"></div></div></div>
+  </div>
+</div>
+
+<!-- Customer Chat Modal -->
+<div class="modal-overlay" id="customer-chat-modal">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">Chat with Customer</div>
+      <button class="modal-close" onclick="closeModal('customer-chat-modal')">✕</button>
+    </div>
+    <div class="chat-container">
+      <div class="chat-messages" id="cust-chat-messages"></div>
+      <div class="chat-input-area">
+        <input type="text" id="cust-chat-input" class="form-control" placeholder="Type a message...">
+        <button class="btn btn-primary" onclick="sendCustMsg()">Send</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+<script src="../../js/shared.js"></script>
+<script>
+  const user = requireAuth('rider');
+  if (!user) window.location.href = '../../index.html';
+
+  renderUserBadge('nav-user');
+
+  let riderId = user.rider_id;
+  let currentChatCustomer = null;
+  let chatPoll = null;
+  let myOrders = [];
+
+  // Verify rider is approved
+  async function checkApproval() {
+    const data = await GET(`/rider/status/${user.user_id}`);
+    if (!data || data.status !== 'approved') {
+      window.location.href = 'pending.html';
+      return false;
+    }
+    riderId = data.id;
+    user.rider_id = data.id;
+    setUser(user);
+    return true;
+  }
+
+  function switchTab(tab) {
+    document.querySelectorAll('.tab-btn').forEach((b,i)=>b.classList.toggle('active',(i===0&&tab==='available')||(i===1&&tab==='active')));
+    document.getElementById('available-section').style.display = tab==='available'?'block':'none';
+    document.getElementById('active-section').style.display = tab==='active'?'block':'none';
+    if (tab==='active') loadMyOrders();
+  }
+
+  async function loadAvailable() {
+    const data = await GET('/orders/available');
+    const el = document.getElementById('available-orders');
+    if (!data?.length) {
+      el.innerHTML = `<div class="empty-state"><div class="empty-icon">📭</div><p class="empty-text">No orders available right now</p><p style="color:var(--text-muted);font-size:0.85rem;">Check back soon!</p></div>`;
+      return;
+    }
+    el.innerHTML = data.map(o=>`
+      <div class="order-card available">
+        <div class="order-header">
+          <div>
+            <div style="font-family:'Syne',sans-serif;font-weight:700;">
+              ${o.order_type==='produce' ? '🥬' : '🍽️'} Order #${o.id}
+              ${o.order_type==='produce' ? '<span style="background:rgba(34,197,94,0.15);color:#22C55E;border-radius:6px;padding:2px 8px;font-size:0.7rem;margin-left:6px;">PRODUCE</span>' : ''}
+            </div>
+            <div style="color:var(--text-muted);font-size:0.8rem;">${timeAgo(o.created_at)}</div>
+          </div>
+          <div style="text-align:right;">
+            <div style="font-family:'Syne',sans-serif;font-weight:700;color:var(--primary);font-size:1.1rem;">PKR ${o.total_amount?.toFixed(0)}</div>
+          </div>
+        </div>
+        <div class="pickup-info"><span class="info-icon">📦</span><span><strong>Pickup:</strong> ${o.restaurant_name} — ${o.pickup_location||''}</span></div>
+        <div class="pickup-info"><span class="info-icon">📍</span><span><strong>Deliver to:</strong> ${o.delivery_address||'—'}</span></div>
+        <div class="pickup-info"><span class="info-icon">👤</span><span><strong>Customer:</strong> ${o.customer_name}</span></div>
+        <div class="action-bar">
+          <button class="btn btn-success" style="flex:1;" onclick="acceptOrder(${o.id}, '${o.order_type||'restaurant'}')">✓ Accept Order</button>
+        </div>
+      </div>`).join('');
+  }
+
+  async function loadMyOrders() {
+    if (!riderId) return;
+    const data = await GET(`/orders/rider/${riderId}`);
+    myOrders = data || [];
+    const active = myOrders.filter(o=>o.status==='Out for Delivery');
+    const el = document.getElementById('active-orders');
+
+    // Stats
+    const delivered = myOrders.filter(o=>o.status==='Delivered').length;
+    document.getElementById('rider-stats').innerHTML = `
+      <div class="stat-card"><div class="stat-icon">📦</div><div class="stat-label">Total Deliveries</div><div class="stat-value">${myOrders.length}</div></div>
+      <div class="stat-card"><div class="stat-icon">✅</div><div class="stat-label">Completed</div><div class="stat-value" style="color:var(--success);">${delivered}</div></div>
+      <div class="stat-card"><div class="stat-icon">🔄</div><div class="stat-label">Active</div><div class="stat-value" style="color:var(--warning);">${active.length}</div></div>`;
+
+    if (!active.length) { el.innerHTML='<div class="empty-state"><div class="empty-icon">📭</div><p class="empty-text">No active deliveries</p></div>'; return; }
+    el.innerHTML = active.map(o=>`
+      <div class="order-card">
+        <div class="order-header">
+          <div>
+            <div style="font-family:'Syne',sans-serif;font-weight:700;">Order #${o.id}</div>
+            <div style="color:var(--text-muted);font-size:0.8rem;">${o.restaurant_name}</div>
+          </div>
+          <div style="font-family:'Syne',sans-serif;font-weight:700;color:var(--primary);">PKR ${o.total_amount?.toFixed(0)}</div>
+        </div>
+        <div class="pickup-info"><span class="info-icon">📍</span><span>${o.delivery_address||'—'}</span></div>
+        <div class="pickup-info"><span class="info-icon">👤</span><span>${o.customer_name} • ${o.customer_phone||''}</span></div>
+        <div class="action-bar">
+          <button class="btn btn-outline" style="flex:1;" onclick="openCustChat(${o.customer_user_id})">💬 Chat</button>
+          <button class="btn btn-success" style="flex:1;" onclick="markDelivered(${o.id})">✓ Mark Delivered</button>
+        </div>
+      </div>`).join('');
+  }
+
+  async function acceptOrder(orderId, orderType='restaurant') {
+    if (!riderId) { toast('Rider ID not found', 'error'); return; }
+    let res;
+    if (orderType === 'produce') {
+      res = await PUT(`/produce/order/${orderId}/status`, { status:'Out for Delivery', rider_id: riderId });
+    } else {
+      res = await PUT(`/orders/${orderId}/assign`, { rider_id: riderId, user_id: user.user_id });
+    }
+    if (res?.success) { toast('Order accepted! Head to pickup.'); loadAvailable(); switchTab('active'); }
+    else toast('Failed to accept order', 'error');
+  }
+
+  async function markDelivered(orderId, orderType='restaurant') {
+    let res;
+    if (orderType === 'produce') {
+      res = await PUT(`/produce/order/${orderId}/status`, { status:'Delivered' });
+    } else {
+      res = await PUT(`/orders/${orderId}/status`, { status:'Delivered', user_id: user.user_id });
+    }
+    if (res?.success) { toast('Order marked as delivered!'); loadMyOrders(); }
+    else toast('Failed', 'error');
+  }
+
+  async function openCustChat(custId) {
+    currentChatCustomer = custId;
+    openModal('customer-chat-modal');
+    await loadCustChatMsgs();
+    chatPoll = setInterval(loadCustChatMsgs, 3000);
+  }
+
+  async function loadCustChatMsgs() {
+    if (!currentChatCustomer) return;
+    const data = await GET(`/messages/${user.user_id}/${currentChatCustomer}`);
+    const box = document.getElementById('cust-chat-messages');
+    if (data && box) {
+      box.innerHTML = data.length ? data.map(m=>`
+        <div>
+          <div class="message-bubble ${m.sender_id===user.user_id?'sent':'received'}">${m.message}</div>
+          <div style="text-align:${m.sender_id===user.user_id?'right':'left'}" class="message-time">${timeAgo(m.created_at)}</div>
+        </div>`).join('') : '<div class="empty-state"><div class="empty-icon">💬</div><p class="empty-text">No messages yet</p></div>';
+      box.scrollTop = box.scrollHeight;
+    }
+  }
+
+  async function sendCustMsg() {
+    const inp = document.getElementById('cust-chat-input');
+    if (!inp.value.trim() || !currentChatCustomer) return;
+    await POST('/messages', { sender_id:user.user_id, receiver_id:currentChatCustomer, message:inp.value.trim() });
+    inp.value = '';
+    await loadCustChatMsgs();
+  }
+
+  document.getElementById('cust-chat-input')?.addEventListener('keydown', e=>{if(e.key==='Enter') sendCustMsg();});
+
+  async function init() {
+    const ok = await checkApproval();
+    if (!ok) return;
+    loadAvailable();
+    loadMyOrders();
+    setInterval(loadAvailable, 15000);
+  }
+
+  init();
+</script>
+</body>
+</html>

@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>QuickBite — Awaiting Restaurant Approval</title>
+  <link rel="stylesheet" href="../../css/main.css">
+  <style>
+    body { display:flex; align-items:center; justify-content:center; min-height:100vh; background:radial-gradient(ellipse at 50% 30%, rgba(255,77,0,0.1) 0%, transparent 60%), var(--bg); }
+    .pending-card { text-align:center; max-width:500px; padding:2rem; }
+    .pulse-icon { font-size:5rem; animation: pulse 2s infinite; margin-bottom:1.5rem; }
+    @keyframes pulse { 0%,100%{transform:scale(1)} 50%{transform:scale(1.05)} }
+    .status-pill { display:inline-flex; align-items:center; gap:0.5rem; background:rgba(245,158,11,0.1); border:1px solid var(--warning); color:var(--warning); padding:0.5rem 1.25rem; border-radius:50px; font-weight:600; font-size:0.9rem; margin-bottom:1.5rem; }
+    .blink { width:8px;height:8px;border-radius:50%;background:var(--warning);animation:blink 1.2s infinite; }
+    @keyframes blink { 0%,100%{opacity:1}50%{opacity:0.2} }
+    .action-card { background:var(--card); border:1px solid var(--border); border-radius:16px; padding:1.5rem; margin-top:1.5rem; text-align:left; }
+  </style>
+</head>
+<body>
+<div class="pending-card">
+  <div class="pulse-icon">🍽️</div>
+  <div class="status-pill"><div class="blink"></div> Pending Admin Review</div>
+  <h1 style="font-family:'Syne',sans-serif;font-size:1.75rem;font-weight:800;margin-bottom:0.75rem;">Restaurant Under Review</h1>
+  <p style="color:var(--text-muted);margin-bottom:1.5rem;line-height:1.7;">Your restaurant has been submitted. Admin will approve within 24 hours. While waiting, you can already add your menu items!</p>
+
+  <div style="display:flex;gap:0.75rem;justify-content:center;">
+    <button class="btn btn-primary" onclick="window.location.href='menu-manager.html'">Add Menu Items Now</button>
+    <button class="btn btn-outline" onclick="logout()">Logout</button>
+  </div>
+
+  <div class="action-card">
+    <div style="font-family:'Syne',sans-serif;font-weight:700;margin-bottom:0.75rem;font-size:0.95rem;">What happens next?</div>
+    <div style="display:flex;flex-direction:column;gap:0.6rem;font-size:0.85rem;color:var(--text-muted);">
+      <div>✅ Your restaurant profile has been created</div>
+      <div>⏳ Admin reviews your restaurant details</div>
+      <div>📧 Once approved, customers can see and order from you</div>
+      <div>💰 You earn revenue minus 5% platform fee</div>
+    </div>
+  </div>
+</div>
+<div id="toast"></div>
+<script src="../../js/shared.js"></script>
+<script>
+  const user = requireAuth('manager');
+  if (!user) window.location.href='../../index.html';
+  if (!user.restaurant_id) window.location.href='setup.html';
+
+  async function checkStatus() {
+    const res = await GET(`/restaurants/${user.restaurant_id}`);
+    if (res?.status==='approved') {
+      user.restaurant_status='approved';
+      setUser(user);
+      toast('🎉 Restaurant approved!');
+      setTimeout(()=>window.location.href='dashboard.html',1500);
+    }
+  }
+  checkStatus();
+  setInterval(checkStatus,10000);
+</script>
+</body>
+</html>

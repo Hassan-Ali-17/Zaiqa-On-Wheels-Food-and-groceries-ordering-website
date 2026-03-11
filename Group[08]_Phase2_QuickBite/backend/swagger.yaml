@@ -1,0 +1,1032 @@
+openapi: 3.0.3
+info:
+  title: QuickBite Food Delivery API
+  version: "2.0.0"
+  description: |
+    REST API for QuickBite — a multi-role food delivery platform (Phase 2).
+
+    ## Authentication
+    All protected endpoints require a JWT Bearer token obtained from POST /api/v1/login.
+    Include it as: `Authorization: Bearer <token>`
+
+    ## Roles
+    - **customer** — browse restaurants, place orders, loyalty, chat
+    - **manager** — manage own restaurant, menu, categories, view stats
+    - **rider** — accept & deliver orders, chat customer
+    - **admin** — full platform control
+
+    ## Versioning
+    All endpoints available at `/api/v1/...` (current) and `/api/...` (legacy alias).
+
+    ## Password Security
+    Passwords hashed with PBKDF2-HMAC-SHA256, 310,000 iterations, 128-bit random salt
+    (NIST SP 800-132 compliant). Format: `pbkdf2:sha256:<iters>$<salt>$<dk_hex>`
+
+    ## Transaction Behaviour
+    POST /api/v1/orders and POST /api/v1/produce/order use explicit BEGIN/COMMIT/ROLLBACK.
+    A 400 response means the entire transaction was rolled back with no partial data changes.
+
+servers:
+  - url: http://127.0.0.1:5000/api/v1
+    description: Local development (versioned)
+  - url: http://127.0.0.1:5000/api
+    description: Local development (legacy alias)
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT issued by POST /api/v1/login (expires 24h).
+
+  schemas:
+    Error:
+      type: object
+      properties:
+        error: { type: string }
+        code:  { type: string, enum: [UNAUTHORIZED, FORBIDDEN] }
+
+    LoginResponse:
+      type: object
+      properties:
+        success:  { type: boolean }
+        token:    { type: string, description: JWT bearer token }
+        user_id:  { type: integer }
+        role:     { type: string, enum: [customer, rider, admin, manager] }
+        name:     { type: string }
+        email:    { type: string }
+
+    Order:
+      type: object
+      properties:
+        id:               { type: integer }
+        customer_id:      { type: integer }
+        restaurant_id:    { type: integer }
+        rider_id:         { type: integer, nullable: true }
+        status:           { type: string }
+        total_amount:     { type: number }
+        delivery_fee:     { type: number }
+        platform_fee:     { type: number }
+        rider_tip:        { type: number }
+        payment_method:   { type: string }
+        delivery_address: { type: string }
+        created_at:       { type: string, format: date-time }
+        items:
+          type: array
+          items:
+            type: object
+            properties:
+              item_id:    { type: integer }
+              name:       { type: string }
+              quantity:   { type: integer }
+              unit_price: { type: number }
+
+    Restaurant:
+      type: object
+      properties:
+        id:             { type: integer }
+        name:           { type: string }
+        cuisine:        { type: string }
+        location:       { type: string }
+        rating:         { type: number }
+        delivery_time:  { type: integer }
+        is_open:        { type: integer }
+        status:         { type: string }
+        image_filename: { type: string }
+        categories:
+          type: array
+          items:
+            type: object
+            properties:
+              id:   { type: integer }
+              name: { type: string }
+              items:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    id:          { type: integer }
+                    name:        { type: string }
+                    description: { type: string }
+                    price:       { type: number }
+                    is_available:{ type: integer }
+
+    ProduceItem:
+      type: object
+      properties:
+        id:             { type: integer }
+        name:           { type: string }
+        category:       { type: string, enum: [fruit, vegetable] }
+        price_per_kg:   { type: number }
+        description:    { type: string }
+        image_filename: { type: string }
+        is_available:   { type: integer }
+
+    Message:
+      type: object
+      properties:
+        id:          { type: integer }
+        sender_id:   { type: integer }
+        receiver_id: { type: integer }
+        message:     { type: string }
+        is_read:     { type: integer }
+        created_at:  { type: string, format: date-time }
+
+paths:
+  # ── AUTH ──────────────────────────────────────────────────────────────────
+  /signup:
+    post:
+      summary: Register a new user
+      operationId: signup
+      tags: [Auth]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, email, password, role]
+              properties:
+                name:          { type: string, example: "Hassan Ali" }
+                email:         { type: string, format: email }
+                password:      { type: string, minLength: 6 }
+                phone:         { type: string }
+                role:          { type: string, enum: [customer, rider, manager] }
+                vehicle_type:  { type: string, description: Required if role=rider }
+                license_plate: { type: string, description: Required if role=rider }
+            example:
+              name: "Hassan Ali"
+              email: "hassan@example.com"
+              password: "secret123"
+              role: "customer"
+      responses:
+        "200":
+          description: Registration successful
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/LoginResponse'
+              example:
+                success: true
+                token: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+                user_id: 5
+                role: "customer"
+        "400":
+          description: Email already exists or invalid input
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+
+  /login:
+    post:
+      summary: Authenticate and receive JWT
+      operationId: login
+      tags: [Auth]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password]
+              properties:
+                email:    { type: string }
+                password: { type: string }
+            example:
+              email: "ahsen@gmail.com"
+              password: "hassan"
+      responses:
+        "200":
+          description: Login successful — JWT returned
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LoginResponse' }
+        "401":
+          description: Invalid credentials
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+
+  /logout:
+    post:
+      summary: Logout (client discards token)
+      operationId: logout
+      tags: [Auth]
+      security: [{ BearerAuth: [] }]
+      responses:
+        "200":
+          description: Logged out
+          content:
+            application/json:
+              example: { success: true }
+
+  # ── RESTAURANTS ────────────────────────────────────────────────────────────
+  /restaurants:
+    get:
+      summary: List all open, approved restaurants
+      operationId: listRestaurants
+      tags: [Restaurants]
+      responses:
+        "200":
+          description: Array of restaurants
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/Restaurant' }
+
+  /restaurants/{id}:
+    get:
+      summary: Get restaurant details with menu
+      operationId: getRestaurant
+      tags: [Restaurants]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        "200":
+          description: Restaurant with categories and menu items
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Restaurant' }
+        "404":
+          description: Not found
+
+  # ── ORDERS ────────────────────────────────────────────────────────────────
+  /orders:
+    post:
+      summary: Place a restaurant order (atomic transaction)
+      operationId: placeOrder
+      tags: [Orders]
+      security: [{ BearerAuth: [] }]
+      description: |
+        **Transaction scenario 1.** All steps execute atomically:
+        INSERT order → INSERT order_items (validated) → validate promo →
+        award loyalty → COMMIT.
+        Any failure triggers ROLLBACK — no partial data is committed.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [customer_id, restaurant_id, subtotal, items]
+              properties:
+                customer_id:      { type: integer }
+                restaurant_id:    { type: integer }
+                subtotal:         { type: number }
+                delivery_fee:     { type: number, default: 50 }
+                promo_code:       { type: string }
+                promo_discount:   { type: number, default: 0 }
+                loyalty_discount: { type: number, default: 0 }
+                payment_method:   { type: string, default: "Cash on Delivery" }
+                delivery_address: { type: string }
+                special_instructions: { type: string }
+                items:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      item_id:    { type: integer }
+                      quantity:   { type: integer }
+                      unit_price: { type: number }
+            example:
+              customer_id: 3
+              restaurant_id: 1
+              subtotal: 1000
+              items: [{ item_id: 101, quantity: 2, unit_price: 500 }]
+              payment_method: "Cash on Delivery"
+              delivery_address: "DHA Phase 5, Lahore"
+      responses:
+        "200":
+          description: Order placed and committed
+          content:
+            application/json:
+              example: { success: true, order_id: 42, total: 1125.0, points_earned: 11 }
+        "400":
+          description: Validation error — transaction rolled back
+          content:
+            application/json:
+              example: { success: false, error: "Promo code 'XYZ' is invalid or inactive" }
+        "401": { description: Unauthenticated }
+        "500":
+          description: Database error — transaction rolled back
+
+  /orders/customer/{cid}:
+    get:
+      summary: Get all orders for a customer
+      operationId: customerOrders
+      tags: [Orders]
+      security: [{ BearerAuth: [] }]
+      parameters:
+        - name: cid
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        "200":
+          description: Array of orders (restaurant + produce combined)
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/Order' }
+
+  /orders/{oid}:
+    get:
+      summary: Get single order status
+      operationId: getOrder
+      tags: [Orders]
+      security: [{ BearerAuth: [] }]
+      parameters:
+        - { name: oid, in: path, required: true, schema: { type: integer } }
+      responses:
+        "200": { description: Order object }
+        "404": { description: Not found }
+
+  /orders/{oid}/status:
+    put:
+      summary: Update order status
+      operationId: updateOrderStatus
+      tags: [Orders]
+      security: [{ BearerAuth: [] }]
+      parameters:
+        - { name: oid, in: path, required: true, schema: { type: integer } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            example: { status: "Out for Delivery" }
+      responses:
+        "200": { description: Status updated }
+
+  /orders/detail/{oid}:
+    get:
+      summary: Get detailed order info (with rider/restaurant details)
+      operationId: getOrderDetail
+      tags: [Orders]
+      security: [{ BearerAuth: [] }]
+      parameters:
+        - { name: oid, in: path, required: true, schema: { type: integer } }
+      responses:
+        "200": { description: Detailed order }
+        "404": { description: Not found }
+
+  /orders/available:
+    get:
+      summary: Get orders available for rider pickup
+      operationId: availableOrders
+      tags: [Orders, Rider]
+      security: [{ BearerAuth: [] }]
+      responses:
+        "200":
+          description: Array of pending unassigned orders
+
+  /orders/{oid}/assign:
+    put:
+      summary: Assign rider to order
+      operationId: assignRider
+      tags: [Orders, Rider]
+      security: [{ BearerAuth: [] }]
+      parameters:
+        - { name: oid, in: path, required: true, schema: { type: integer } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            example: { rider_id: 2 }
+      responses:
+        "200": { description: Rider assigned }
+
+  /orders/rider/{rid}:
+    get:
+      summary: Get orders assigned to a rider
+      operationId: riderOrders
+      tags: [Orders, Rider]
+      security: [{ BearerAuth: [] }]
+      parameters:
+        - { name: rid, in: path, required: true, schema: { type: integer } }
+      responses:
+        "200": { description: Array of rider orders }
+
+  # ── PRODUCE ────────────────────────────────────────────────────────────────
+  /produce:
+    get:
+      summary: List produce items
+      operationId: listProduce
+      tags: [Produce]
+      parameters:
+        - name: category
+          in: query
+          schema: { type: string, enum: [fruit, vegetable] }
+      responses:
+        "200":
+          description: Array of produce items
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/ProduceItem' }
+
+  /produce/order:
+    post:
+      summary: Place a produce order (atomic transaction)
+      operationId: placeProduce
+      tags: [Produce]
+      security: [{ BearerAuth: [] }]
+      description: |
+        **Transaction scenario 2.** Validates produce availability, promo code,
+        and loyalty points atomically. Rolls back on any failure.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            example:
+              customer_id: 3
+              total_amount: 500
+              delivery_fee: 50
+              payment_method: "Cash on Delivery"
+              delivery_address: "Gulberg III, Lahore"
+              items:
+                - produce_id: 1
+                  quantity_kg: 2
+                  unit_price: 280
+      responses:
+        "200":
+          description: Produce order placed
+          content:
+            application/json:
+              example: { success: true, order_id: 7, total: 550, points_earned: 5 }
+        "400":
+          description: Validation error — rolled back
+        "500":
+          description: DB error — rolled back
+
+  /produce/orders/{cid}:
+    get:
+      summary: Get produce order history for customer
+      operationId: customerProduceOrders
+      tags: [Produce]
+      security: [{ BearerAuth: [] }]
+      parameters:
+        - { name: cid, in: path, required: true, schema: { type: integer } }
+      responses:
+        "200": { description: Array of produce orders }
+
+  /produce/order/{oid}:
+    get:
+      summary: Get single produce order detail
+      operationId: getProduceOrder
+      tags: [Produce]
+      security: [{ BearerAuth: [] }]
+      parameters:
+        - { name: oid, in: path, required: true, schema: { type: integer } }
+      responses:
+        "200": { description: Produce order detail }
+        "404": { description: Not found }
+
+  /produce/order/{oid}/status:
+    put:
+      summary: Update produce order status
+      operationId: updateProduceStatus
+      tags: [Produce]
+      security: [{ BearerAuth: [] }]
+      parameters:
+        - { name: oid, in: path, required: true, schema: { type: integer } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            example: { status: "Out for Delivery", rider_id: 2 }
+      responses:
+        "200": { description: Status updated }
+
+  /produce/order/{oid}/assign:
+    put:
+      summary: Assign rider to produce order
+      operationId: assignProduceRider
+      tags: [Produce]
+      security: [{ BearerAuth: [] }]
+      parameters:
+        - { name: oid, in: path, required: true, schema: { type: integer } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            example: { rider_id: 2 }
+      responses:
+        "200": { description: Rider assigned }
+
+  # ── PROMO CODES ────────────────────────────────────────────────────────────
+  /promo/validate:
+    post:
+      summary: Validate a promo code
+      operationId: validatePromo
+      tags: [Promos]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            example: { code: "HASSAN", order_total: 1000 }
+      responses:
+        "200": { description: Promo details and discount amount }
+        "400": { description: Invalid or inactive promo }
+
+  /promo/use:
+    post:
+      summary: Mark promo code as used
+      operationId: usePromo
+      tags: [Promos]
+      security: [{ BearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            example: { code: "HASSAN" }
+      responses:
+        "200": { description: Used count incremented }
+
+  # ── LOYALTY ────────────────────────────────────────────────────────────────
+  /loyalty/{cid}:
+    get:
+      summary: Get customer loyalty balance and history
+      operationId: getLoyalty
+      tags: [Loyalty]
+      security: [{ BearerAuth: [] }]
+      parameters:
+        - { name: cid, in: path, required: true, schema: { type: integer } }
+      responses:
+        "200":
+          description: Loyalty balance and transaction history
+          content:
+            application/json:
+              example:
+                total_points: 250
+                lifetime_points: 500
+                transactions: []
+
+  /loyalty/earn:
+    post:
+      summary: Award loyalty points to customer
+      operationId: earnLoyalty
+      tags: [Loyalty]
+      security: [{ BearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            example: { customer_id: 3, order_id: 42, amount: 1000 }
+      responses:
+        "200": { description: Points awarded }
+
+  /loyalty/redeem:
+    post:
+      summary: Redeem loyalty points
+      operationId: redeemLoyalty
+      tags: [Loyalty]
+      security: [{ BearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            example: { customer_id: 3, points: 50 }
+      responses:
+        "200": { description: Points redeemed }
+        "400": { description: Insufficient points }
+
+  # ── MESSAGES ───────────────────────────────────────────────────────────────
+  /messages:
+    post:
+      summary: Send a message
+      operationId: sendMessage
+      tags: [Messages]
+      security: [{ BearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            example: { sender_id: 3, receiver_id: 5, message: "On my way!", order_id: 42 }
+      responses:
+        "200": { description: Message sent }
+
+  /messages/{uid1}/{uid2}:
+    get:
+      summary: Get conversation between two users
+      operationId: getConversation
+      tags: [Messages]
+      security: [{ BearerAuth: [] }]
+      parameters:
+        - { name: uid1, in: path, required: true, schema: { type: integer } }
+        - { name: uid2, in: path, required: true, schema: { type: integer } }
+      responses:
+        "200":
+          description: Array of messages (both directions)
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/Message' }
+
+  /messages/admin/{uid}:
+    get:
+      summary: Get admin conversation with a user
+      operationId: adminMessages
+      tags: [Messages, Admin]
+      security: [{ BearerAuth: [] }]
+      parameters:
+        - { name: uid, in: path, required: true, schema: { type: integer } }
+      responses:
+        "200": { description: Array of messages }
+
+  # ── REVIEWS ────────────────────────────────────────────────────────────────
+  /reviews:
+    post:
+      summary: Submit a restaurant review
+      operationId: submitReview
+      tags: [Reviews]
+      security: [{ BearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            example: { customer_id: 3, restaurant_id: 1, order_id: 42, rating: 5, comment: "Excellent!" }
+      responses:
+        "200": { description: Review saved }
+
+  /reviews/restaurant/{rid}:
+    get:
+      summary: Get all reviews for a restaurant
+      operationId: restaurantReviews
+      tags: [Reviews]
+      parameters:
+        - { name: rid, in: path, required: true, schema: { type: integer } }
+      responses:
+        "200": { description: Array of reviews }
+
+  # ── RIDER ──────────────────────────────────────────────────────────────────
+  /rider/status/{uid}:
+    get:
+      summary: Get rider status and approval
+      operationId: riderStatus
+      tags: [Rider]
+      security: [{ BearerAuth: [] }]
+      parameters:
+        - { name: uid, in: path, required: true, schema: { type: integer } }
+      responses:
+        "200": { description: Rider profile and status }
+
+  /rider/{rid}/earnings:
+    get:
+      summary: Get rider earnings summary
+      operationId: riderEarnings
+      tags: [Rider]
+      security: [{ BearerAuth: [] }]
+      parameters:
+        - { name: rid, in: path, required: true, schema: { type: integer } }
+      responses:
+        "200":
+          description: Earnings data
+          content:
+            application/json:
+              example: { total_orders: 45, revenue: 22500, platform_fee: 2250, net_revenue: 20250 }
+
+  /rider/location/{order_id}:
+    get:
+      summary: Get simulated rider GPS location for order tracking
+      operationId: riderLocation
+      tags: [Rider]
+      parameters:
+        - { name: order_id, in: path, required: true, schema: { type: integer } }
+      responses:
+        "200":
+          description: Rider coordinates and ETA
+          content:
+            application/json:
+              example:
+                rider_lat: 31.5256
+                rider_lng: 74.3617
+                progress: 45
+                eta_minutes: 12
+
+  # ── MANAGER ────────────────────────────────────────────────────────────────
+  /manager/restaurant:
+    post:
+      summary: Register a new restaurant (manager)
+      operationId: createRestaurant
+      tags: [Manager]
+      security: [{ BearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            example: { name: "My Restaurant", cuisine: "Pakistani", location: "DHA Lahore", manager_id: 4 }
+      responses:
+        "200": { description: Restaurant created (pending approval) }
+
+  /manager/restaurant/{rid}:
+    get:
+      summary: Get manager's restaurant details
+      operationId: getManagerRestaurant
+      tags: [Manager]
+      security: [{ BearerAuth: [] }]
+      parameters:
+        - { name: rid, in: path, required: true, schema: { type: integer } }
+      responses:
+        "200": { description: Restaurant details }
+    put:
+      summary: Update restaurant info
+      operationId: updateRestaurant
+      tags: [Manager]
+      security: [{ BearerAuth: [] }]
+      parameters:
+        - { name: rid, in: path, required: true, schema: { type: integer } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            example: { is_open: 1, description: "Best food in Lahore" }
+      responses:
+        "200": { description: Restaurant updated }
+
+  /manager/restaurant/{rid}/orders:
+    get:
+      summary: Get all orders for a restaurant
+      operationId: restaurantOrders
+      tags: [Manager]
+      security: [{ BearerAuth: [] }]
+      parameters:
+        - { name: rid, in: path, required: true, schema: { type: integer } }
+      responses:
+        "200": { description: Array of orders }
+
+  /manager/restaurant/{rid}/stats:
+    get:
+      summary: Get restaurant revenue and order statistics
+      operationId: restaurantStats
+      tags: [Manager]
+      security: [{ BearerAuth: [] }]
+      parameters:
+        - { name: rid, in: path, required: true, schema: { type: integer } }
+      responses:
+        "200":
+          description: Statistics
+          content:
+            application/json:
+              example: { total_orders: 120, revenue: 85000, platform_fee: 4250, net_revenue: 80750 }
+
+  /manager/category:
+    post:
+      summary: Create a menu category
+      operationId: createCategory
+      tags: [Manager]
+      security: [{ BearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            example: { restaurant_id: 1, name: "Burgers" }
+      responses:
+        "200": { description: Category created }
+
+  /manager/menu-item:
+    post:
+      summary: Create a menu item
+      operationId: createMenuItem
+      tags: [Manager]
+      security: [{ BearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            example: { restaurant_id: 1, category_id: 5, name: "Zinger", description: "Spicy chicken", price: 580 }
+      responses:
+        "200": { description: Item created }
+
+  /manager/menu-item/{iid}:
+    put:
+      summary: Update or toggle availability of menu item
+      operationId: updateMenuItem
+      tags: [Manager]
+      security: [{ BearerAuth: [] }]
+      parameters:
+        - { name: iid, in: path, required: true, schema: { type: integer } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            examples:
+              toggle:
+                value: { is_available: 0, _toggle: true }
+              update:
+                value: { name: "Zinger XL", price: 650, description: "Bigger zinger" }
+      responses:
+        "200": { description: Item updated }
+    delete:
+      summary: Delete a menu item
+      operationId: deleteMenuItem
+      tags: [Manager]
+      security: [{ BearerAuth: [] }]
+      parameters:
+        - { name: iid, in: path, required: true, schema: { type: integer } }
+      responses:
+        "200": { description: Item deleted }
+
+  # ── ADMIN ──────────────────────────────────────────────────────────────────
+  /admin/stats:
+    get:
+      summary: Platform-wide statistics
+      operationId: adminStats
+      tags: [Admin]
+      security: [{ BearerAuth: [] }]
+      responses:
+        "200":
+          description: Platform stats
+          content:
+            application/json:
+              example:
+                total_users: 150
+                total_orders: 1200
+                total_revenue: 840000
+                active_riders: 12
+
+  /admin/orders:
+    get:
+      summary: All orders on the platform
+      operationId: adminOrders
+      tags: [Admin]
+      security: [{ BearerAuth: [] }]
+      responses:
+        "200": { description: Array of all orders }
+
+  /admin/users:
+    get:
+      summary: All registered users
+      operationId: adminUsers
+      tags: [Admin]
+      security: [{ BearerAuth: [] }]
+      responses:
+        "200": { description: Array of users }
+
+  /admin/riders:
+    get:
+      summary: All riders (pending and approved)
+      operationId: adminRiders
+      tags: [Admin]
+      security: [{ BearerAuth: [] }]
+      responses:
+        "200": { description: Array of riders }
+
+  /admin/riders/{rid}/approve:
+    put:
+      summary: Approve or reject a rider
+      operationId: approveRider
+      tags: [Admin]
+      security: [{ BearerAuth: [] }]
+      parameters:
+        - { name: rid, in: path, required: true, schema: { type: integer } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            example: { status: "approved" }
+      responses:
+        "200": { description: Rider status updated }
+
+  /admin/restaurants:
+    get:
+      summary: All restaurants including pending
+      operationId: adminRestaurants
+      tags: [Admin]
+      security: [{ BearerAuth: [] }]
+      responses:
+        "200": { description: Array of all restaurants }
+    post:
+      summary: Admin creates a restaurant directly
+      operationId: adminCreateRestaurant
+      tags: [Admin]
+      security: [{ BearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            example: { name: "New Restaurant", cuisine: "Chinese", location: "Johar Town" }
+      responses:
+        "200": { description: Restaurant created }
+
+  /admin/restaurants/{rid}:
+    put:
+      summary: Update any restaurant
+      operationId: adminUpdateRestaurant
+      tags: [Admin]
+      security: [{ BearerAuth: [] }]
+      parameters:
+        - { name: rid, in: path, required: true, schema: { type: integer } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            example: { status: "approved", is_open: 1 }
+      responses:
+        "200": { description: Restaurant updated }
+    delete:
+      summary: Delete a restaurant
+      operationId: adminDeleteRestaurant
+      tags: [Admin]
+      security: [{ BearerAuth: [] }]
+      parameters:
+        - { name: rid, in: path, required: true, schema: { type: integer } }
+      responses:
+        "200": { description: Restaurant deleted }
+
+  /admin/restaurants/{rid}/approve:
+    put:
+      summary: Approve or reject a restaurant application
+      operationId: approveRestaurant
+      tags: [Admin]
+      security: [{ BearerAuth: [] }]
+      parameters:
+        - { name: rid, in: path, required: true, schema: { type: integer } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            example: { status: "approved" }
+      responses:
+        "200": { description: Restaurant status updated }
+
+  /admin/promos:
+    get:
+      summary: List all promo codes
+      operationId: listPromos
+      tags: [Admin]
+      security: [{ BearerAuth: [] }]
+      responses:
+        "200": { description: Array of promo codes }
+    post:
+      summary: Create a promo code
+      operationId: createPromo
+      tags: [Admin]
+      security: [{ BearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            example: { code: "EID2024", discount_type: "percent", discount_value: 25, max_uses: 500 }
+      responses:
+        "200": { description: Promo created }
+
+  /admin/promos/{pid}:
+    put:
+      summary: Update a promo code
+      operationId: updatePromo
+      tags: [Admin]
+      security: [{ BearerAuth: [] }]
+      parameters:
+        - { name: pid, in: path, required: true, schema: { type: integer } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            example: { is_active: 0 }
+      responses:
+        "200": { description: Promo updated }
+    delete:
+      summary: Delete a promo code
+      operationId: deletePromo
+      tags: [Admin]
+      security: [{ BearerAuth: [] }]
+      parameters:
+        - { name: pid, in: path, required: true, schema: { type: integer } }
+      responses:
+        "200": { description: Promo deleted }
+
+  /admin/audit:
+    get:
+      summary: Get audit log entries
+      operationId: auditLog
+      tags: [Admin]
+      security: [{ BearerAuth: [] }]
+      responses:
+        "200":
+          description: Array of audit log entries
+          content:
+            application/json:
+              example:
+                - id: 1
+                  user_id: 3
+                  action: "PLACE_ORDER"
+                  details: "Order #42 PKR 1125.0 COMMITTED"
+                  timestamp: "2026-03-08T14:30:00"
+
+  /admin/conversations:
+    get:
+      summary: Get all user conversations for admin support view
+      operationId: adminConversations
+      tags: [Admin, Messages]
+      security: [{ BearerAuth: [] }]
+      responses:
+        "200": { description: Array of conversation previews }

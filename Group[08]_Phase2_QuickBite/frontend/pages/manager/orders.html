@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>QuickBite Manager — Orders</title>
+  <link rel="stylesheet" href="../../css/main.css">
+</head>
+<body>
+<nav class="navbar">
+  <a href="dashboard.html" class="nav-logo">Quick<span>Bite</span> <span style="font-size:0.7rem;background:rgba(168,85,247,0.15);color:#A855F7;padding:2px 8px;border-radius:4px;margin-left:4px;">MANAGER</span></a>
+  <div class="nav-user" id="nav-user"></div>
+  <button class="theme-toggle" id="theme-toggle-btn" onclick="toggleTheme()">☀️ Light</button>
+</nav>
+<div class="app-layout">
+  <nav class="sidebar">
+    <div class="sidebar-section">Restaurant</div>
+    <a href="dashboard.html" class="sidebar-link"><span class="sidebar-icon">📊</span> Dashboard</a>
+    <a href="menu-manager.html" class="sidebar-link"><span class="sidebar-icon">🍽️</span> Menu Manager</a>
+    <a href="orders.html" class="sidebar-link active"><span class="sidebar-icon">📦</span> Orders</a>
+    <a href="profile.html" class="sidebar-link"><span class="sidebar-icon">⚙️</span> Settings</a>
+    <div style="margin-top:auto;padding-top:2rem;">
+      <button class="sidebar-link" onclick="logout()" style="width:100%;background:none;border:none;cursor:pointer;color:var(--danger);">
+        <span class="sidebar-icon">🚪</span> Logout
+      </button>
+    </div>
+  </nav>
+  <main class="main-content">
+    <div class="page-header" style="display:flex;justify-content:space-between;align-items:flex-start;">
+      <div>
+        <div class="page-title">Orders</div>
+        <div class="page-subtitle">Manage incoming orders for your restaurant</div>
+      </div>
+      <div style="display:flex;gap:0.75rem;align-items:center;">
+        <select id="status-filter" class="form-control" style="width:auto;" onchange="filterOrders()">
+          <option value="all">All</option>
+          <option value="Pending">Pending</option>
+          <option value="Confirmed">Confirmed</option>
+          <option value="Preparing">Preparing</option>
+          <option value="Delivered">Delivered</option>
+        </select>
+        <button class="btn btn-outline" onclick="loadOrders()">↻</button>
+      </div>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th>Order</th><th>Customer</th><th>Items</th><th>Amount</th><th>Payment</th><th>Status</th><th>Actions</th></tr>
+        </thead>
+        <tbody id="orders-tbody">
+          <tr><td colspan="7" style="text-align:center;padding:2rem;"><div class="spinner" style="margin:auto;"></div></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </main>
+</div>
+<div id="toast"></div>
+<script src="../../js/shared.js"></script>
+<script>
+  const user = requireAuth('manager');
+  if (!user?.restaurant_id) window.location.href='setup.html';
+  renderUserBadge('nav-user');
+  const RID = user.restaurant_id;
+  let allOrders = [];
+
+  async function loadOrders() {
+    const data = await GET(`/manager/restaurant/${RID}/orders`);
+    allOrders = data || [];
+    filterOrders();
+  }
+
+  function filterOrders() {
+    const f = document.getElementById('status-filter').value;
+    const list = f==='all'?allOrders:allOrders.filter(o=>o.status===f);
+    const tbody = document.getElementById('orders-tbody');
+    if (!list.length) { tbody.innerHTML='<tr><td colspan="7" style="text-align:center;color:var(--text-muted);padding:2rem;">No orders found</td></tr>'; return; }
+    tbody.innerHTML = list.map(o=>`
+      <tr>
+        <td><strong>#${o.id}</strong><br><span style="font-size:0.75rem;color:var(--text-muted);">${timeAgo(o.created_at)}</span></td>
+        <td>${o.customer_name}</td>
+        <td style="font-size:0.8rem;max-width:160px;">${(o.items||[]).map(i=>`${i.name} x${i.quantity}`).join(', ')}</td>
+        <td style="color:var(--primary);font-weight:700;">PKR ${o.total_amount?.toFixed(0)}</td>
+        <td style="font-size:0.8rem;">${o.payment_method||'COD'}</td>
+        <td>${statusBadge(o.status)}</td>
+        <td>
+          <select class="form-control" style="padding:0.3rem;font-size:0.8rem;border-radius:6px;" onchange="updateStatus(${o.id},this.value)">
+            <option value="">Update</option>
+            <option value="Confirmed">Confirm</option>
+            <option value="Preparing">Preparing</option>
+            <option value="Out for Delivery">Out for Delivery</option>
+            <option value="Delivered">Delivered</option>
+            <option value="Cancelled">Cancel</option>
+          </select>
+        </td>
+      </tr>`).join('');
+  }
+
+  async function updateStatus(id, status) {
+    if (!status) return;
+    const res = await PUT(`/orders/${id}/status`, {status, user_id:user.user_id});
+    if (res?.success) { toast(`Order #${id} → ${status}`); loadOrders(); }
+    else toast('Failed','error');
+  }
+
+  loadOrders();
+  setInterval(loadOrders,15000);
+</script>
+</body>
+</html>

@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>QuickBite — Support Chat</title>
+  <link rel="stylesheet" href="../../css/main.css">
+  <style>
+    .chat-page { display:flex; flex-direction:column; height:calc(100vh - 64px); }
+    .chat-header { padding:1rem 2rem; border-bottom:1px solid var(--border); display:flex; align-items:center; gap:1rem; background:var(--bg2); }
+    .support-avatar { width:44px;height:44px;border-radius:50%;background:var(--primary);display:flex;align-items:center;justify-content:center;font-size:1.2rem; }
+    .support-info h3 { font-family:'Syne',sans-serif; font-weight:700; font-size:1rem; }
+    .support-info p { color:var(--text-muted); font-size:0.8rem; }
+    .online-dot { width:8px;height:8px;border-radius:50%;background:var(--success);display:inline-block;margin-right:4px; }
+    .chat-body { flex:1; overflow-y:auto; padding:2rem; display:flex; flex-direction:column; gap:0.75rem; }
+    .chat-footer { padding:1rem 2rem; border-top:1px solid var(--border); display:flex; gap:0.75rem; background:var(--bg2); }
+  </style>
+</head>
+<body>
+<nav class="navbar">
+  <a href="home.html" class="nav-logo">Quick<span>Bite</span></a>
+  <div class="nav-links">
+    <a href="home.html">🏠 Home</a>
+    <a href="orders.html">📦 My Orders</a>
+    <a href="chat.html" class="active">💬 Support</a>
+    <a href="loyalty.html">⭐ Loyalty</a>
+    <a href="profile.html">👤 Profile</a>
+  </div>
+  <div class="nav-user" id="nav-user"></div>
+  <button class="theme-toggle" id="theme-toggle-btn" onclick="toggleTheme()">☀️ Light</button>
+</nav>
+
+<div class="chat-page">
+  <div class="chat-header">
+    <div class="support-avatar">🎧</div>
+    <div class="support-info">
+      <h3>QuickBite Support</h3>
+      <p><span class="online-dot"></span>Admin • Typically responds in minutes</p>
+    </div>
+  </div>
+  <div class="chat-body" id="chat-body">
+    <div class="loader"><div class="spinner"></div></div>
+  </div>
+  <div class="chat-footer">
+    <input type="text" id="msg-input" class="form-control" placeholder="Type your message...">
+    <button class="btn btn-primary" onclick="sendMsg()">Send</button>
+  </div>
+</div>
+
+<div id="toast"></div>
+<script src="../../js/shared.js"></script>
+<script>
+  const user = requireAuth('customer');
+  renderUserBadge('nav-user');
+
+  let adminId = null;
+  let pollInterval = null;
+
+  async function loadMessages() {
+    const data = await GET(`/messages/admin/${user.user_id}`);
+    if (!data) return;
+    adminId = data.admin_id;
+    const msgs = data.messages || [];
+    const body = document.getElementById('chat-body');
+    if (!msgs.length) {
+      body.innerHTML = `
+        <div class="empty-state">
+          <div class="empty-icon">👋</div>
+          <p style="font-weight:600;margin-bottom:0.5rem;">Hi, ${user.name}!</p>
+          <p class="empty-text">Have a question or issue? Chat with our support team!</p>
+        </div>`;
+      return;
+    }
+    body.innerHTML = msgs.map(m => `
+      <div>
+        <div class="message-bubble ${m.sender_id===user.user_id?'sent':'received'}">${m.message}</div>
+        <div style="text-align:${m.sender_id===user.user_id?'right':'left'};font-size:0.7rem;color:var(--text-muted);margin-top:2px;">${timeAgo(m.created_at)}</div>
+      </div>`).join('');
+    body.scrollTop = body.scrollHeight;
+  }
+
+  async function sendMsg() {
+    const inp = document.getElementById('msg-input');
+    const msg = inp.value.trim();
+    if (!msg || !adminId) { toast('Please wait...', 'error'); return; }
+    await POST('/messages', { sender_id: user.user_id, receiver_id: adminId, message: msg });
+    inp.value = '';
+    await loadMessages();
+  }
+
+  document.getElementById('msg-input').addEventListener('keydown', e => { if (e.key==='Enter') sendMsg(); });
+
+  loadMessages();
+  pollInterval = setInterval(loadMessages, 4000);
+</script>
+</body>
+</html>

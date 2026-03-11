@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>QuickBite — Awaiting Approval</title>
+  <link rel="stylesheet" href="../../css/main.css">
+  <style>
+    body { display:flex; align-items:center; justify-content:center; min-height:100vh; background:radial-gradient(ellipse at 50% 30%, rgba(255,77,0,0.1) 0%, transparent 60%), var(--bg); }
+    .pending-card { text-align:center; max-width:480px; padding:2rem; }
+    .pending-icon { font-size:5rem; margin-bottom:1.5rem; animation: pulse 2s infinite; }
+    @keyframes pulse { 0%,100%{transform:scale(1)} 50%{transform:scale(1.05)} }
+    .pending-title { font-family:'Syne',sans-serif; font-size:2rem; font-weight:800; margin-bottom:0.75rem; }
+    .pending-msg { color:var(--text-muted); line-height:1.6; margin-bottom:2rem; }
+    .status-pill { display:inline-flex; align-items:center; gap:0.5rem; background:rgba(245,158,11,0.1); border:1px solid var(--warning); color:var(--warning); padding:0.5rem 1.25rem; border-radius:50px; font-weight:600; font-size:0.9rem; margin-bottom:1.5rem; }
+    .dot-blink { width:8px; height:8px; border-radius:50%; background:var(--warning); animation: blink 1.2s infinite; }
+    @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.2} }
+    .steps { text-align:left; background:var(--card); border:1px solid var(--border); border-radius:16px; padding:1.5rem; margin-bottom:1.5rem; }
+    .step { display:flex; gap:1rem; margin-bottom:1rem; }
+    .step:last-child { margin-bottom:0; }
+    .step-num { width:28px; height:28px; border-radius:50%; background:var(--primary); color:white; display:flex; align-items:center; justify-content:center; font-size:0.8rem; font-weight:700; flex-shrink:0; }
+    .step-text strong { display:block; font-size:0.9rem; margin-bottom:0.15rem; }
+    .step-text span { font-size:0.8rem; color:var(--text-muted); }
+    #rejected-msg { display:none; background:rgba(239,68,68,0.1); border:1px solid var(--danger); border-radius:12px; padding:1rem; margin-bottom:1rem; color:var(--danger); }
+  </style>
+</head>
+<body>
+<div class="pending-card">
+  <div class="pending-icon">🛵</div>
+  <div id="rejected-msg">Your application has been rejected. Please contact support or sign up again.</div>
+  <div class="status-pill"><div class="dot-blink"></div> Pending Admin Review</div>
+  <div class="pending-title">Application Under Review</div>
+  <div class="pending-msg">Your rider application has been submitted successfully. An admin will review and approve your account before you can start delivering.</div>
+
+  <div class="steps">
+    <div class="step">
+      <div class="step-num">✓</div>
+      <div class="step-text"><strong>Account Created</strong><span>Your account has been registered</span></div>
+    </div>
+    <div class="step">
+      <div class="step-num" style="background:var(--warning);">2</div>
+      <div class="step-text"><strong>Awaiting Approval</strong><span>Admin is reviewing your application</span></div>
+    </div>
+    <div class="step">
+      <div class="step-num" style="background:var(--border);">3</div>
+      <div class="step-text"><strong>Start Delivering</strong><span>Once approved, you can accept orders</span></div>
+    </div>
+  </div>
+
+  <p style="color:var(--text-muted);font-size:0.85rem;margin-bottom:1.5rem;">This page will refresh automatically to check your status.</p>
+  <button class="btn btn-outline btn-full" onclick="logout()">Logout</button>
+</div>
+
+<div id="toast"></div>
+<script src="../../js/shared.js"></script>
+<script>
+  const user = requireAnyAuth('rider');
+  if (!user) window.location.href = '../../index.html';
+
+  async function checkStatus() {
+    const data = await GET(`/rider/status/${user.user_id}`);
+    if (!data) return;
+    if (data.status === 'approved') {
+      user.rider_status = 'approved';
+      user.rider_id = data.id;
+      setUser(user);
+      toast('🎉 You\'ve been approved! Redirecting...');
+      setTimeout(() => window.location.href = 'dashboard.html', 1500);
+    } else if (data.status === 'rejected') {
+      document.getElementById('rejected-msg').style.display = 'block';
+      document.querySelector('.status-pill').innerHTML = '✗ Application Rejected';
+      document.querySelector('.status-pill').style.cssText = 'display:inline-flex;align-items:center;gap:0.5rem;background:rgba(239,68,68,0.1);border:1px solid var(--danger);color:var(--danger);padding:0.5rem 1.25rem;border-radius:50px;font-weight:600;font-size:0.9rem;margin-bottom:1.5rem;';
+    }
+  }
+
+  checkStatus();
+  setInterval(checkStatus, 10000);
+</script>
+</body>
+</html>

@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>QuickBite Admin — Users</title>
+  <link rel="stylesheet" href="../../css/main.css">
+</head>
+<body>
+<nav class="navbar">
+  <a href="dashboard.html" class="nav-logo">Quick<span>Bite</span> <span style="font-size:0.7rem;color:var(--primary);background:rgba(255,77,0,0.15);padding:2px 8px;border-radius:4px;margin-left:4px;">ADMIN</span></a>
+  <div class="nav-user" id="nav-user"></div>
+  <button class="theme-toggle" id="theme-toggle-btn" onclick="toggleTheme()">☀️ Light</button>
+</nav>
+<div class="app-layout">
+  <nav class="sidebar">
+    <div class="sidebar-section">Main</div>
+    <a href="dashboard.html" class="sidebar-link"><span class="sidebar-icon">📊</span> Dashboard</a>
+    <a href="orders.html" class="sidebar-link"><span class="sidebar-icon">📦</span> Orders</a>
+    <a href="restaurants.html" class="sidebar-link"><span class="sidebar-icon">🍽️</span> Restaurants</a>
+    <div class="sidebar-section">People</div>
+    <a href="riders.html" class="sidebar-link"><span class="sidebar-icon">🛵</span> Riders</a>
+    <a href="users.html" class="sidebar-link active"><span class="sidebar-icon">👥</span> Users</a>
+    <a href="chat.html" class="sidebar-link"><span class="sidebar-icon">💬</span> Support Chat</a>
+    <div class="sidebar-section">System</div>
+    <a href="promos.html" class="sidebar-link"><span class="sidebar-icon">🎟️</span> Promo Codes</a>
+    <a href="audit.html" class="sidebar-link"><span class="sidebar-icon">📋</span> Audit Log</a>
+  </nav>
+  <main class="main-content">
+    <div class="page-header">
+      <div class="page-title">All Users</div>
+      <div class="page-subtitle">View all registered users</div>
+    </div>
+
+    <div style="display:flex;gap:0.75rem;margin-bottom:1.5rem;">
+      <input type="text" id="search" class="form-control" placeholder="Search by name or email..." oninput="renderUsers()" style="max-width:300px;">
+      <select id="role-filter" class="form-control" style="width:auto;" onchange="renderUsers()">
+        <option value="all">All Roles</option>
+        <option value="customer">Customers</option>
+        <option value="rider">Riders</option>
+        <option value="admin">Admins</option>
+      </select>
+    </div>
+
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th>Name</th><th>Email</th><th>Phone</th><th>Role</th><th>Joined</th></tr>
+        </thead>
+        <tbody id="users-tbody">
+          <tr><td colspan="5" style="text-align:center;padding:2rem;"><div class="spinner" style="margin:auto;"></div></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </main>
+</div>
+
+<div id="toast"></div>
+<script src="../../js/shared.js"></script>
+<script>
+  const user = requireAuth('admin');
+  renderUserBadge('nav-user');
+  let allUsers = [];
+
+  async function loadUsers() {
+    allUsers = await GET('/admin/users') || [];
+    renderUsers();
+  }
+
+  function renderUsers() {
+    const q = document.getElementById('search').value.toLowerCase();
+    const role = document.getElementById('role-filter').value;
+    let list = allUsers.filter(u => {
+      const matchRole = role==='all' || u.role===role;
+      const matchQ = !q || u.name.toLowerCase().includes(q) || u.email.toLowerCase().includes(q);
+      return matchRole && matchQ;
+    });
+    const tbody = document.getElementById('users-tbody');
+    if (!list.length) { tbody.innerHTML='<tr><td colspan="5" style="text-align:center;color:var(--text-muted);padding:2rem;">No users found</td></tr>'; return; }
+    tbody.innerHTML = list.map(u=>`
+      <tr>
+        <td style="font-weight:500;">${u.name}</td>
+        <td style="color:var(--text-muted);font-size:0.9rem;">${u.email}</td>
+        <td style="font-size:0.9rem;">${u.phone||'—'}</td>
+        <td>${statusBadge(u.role)}</td>
+        <td style="color:var(--text-muted);font-size:0.85rem;">${timeAgo(u.created_at)}</td>
+      </tr>`).join('');
+  }
+
+  loadUsers();
+</script>
+</body>
+</html>

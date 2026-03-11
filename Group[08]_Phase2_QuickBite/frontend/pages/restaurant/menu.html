@@ -1,0 +1,477 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>QuickBite — Menu</title>
+  <link rel="stylesheet" href="../../css/main.css">
+  <style>
+    .restaurant-hero { padding:2rem; background:linear-gradient(135deg,rgba(255,77,0,0.12),transparent); border-bottom:1px solid var(--border); display:flex; gap:1.5rem; align-items:center; }
+    .hero-emoji { font-size:3.5rem; background:var(--bg3); border-radius:16px; width:80px; height:80px; display:flex; align-items:center; justify-content:center; }
+    .hero-info h1 { font-family:'Syne',sans-serif; font-size:1.75rem; font-weight:800; }
+    .hero-meta { display:flex; gap:1.5rem; margin-top:0.5rem; color:var(--text-muted); font-size:0.9rem; }
+    .cart-empty { text-align:center; padding:2rem; color:var(--text-muted); font-size:0.9rem; }
+    .cart-title { font-family:'Syne',sans-serif; font-weight:800; font-size:1.1rem; margin-bottom:1rem; }
+    .cart-total { display:flex; justify-content:space-between; padding:1rem 0; border-top:1px solid var(--border); font-weight:700; }
+    .cart-total-price { color:var(--primary); font-family:'Syne',sans-serif; font-size:1.1rem; }
+    .qty-display { font-weight:600; min-width:20px; text-align:center; }
+    .review-card { background:var(--bg3); border-radius:12px; padding:1rem; margin-bottom:0.75rem; }
+    .review-stars { color:var(--warning); margin-bottom:0.25rem; }
+    .review-author { font-size:0.8rem; color:var(--text-muted); }
+  </style>
+</head>
+<body>
+<nav class="navbar">
+  <a href="../customer/home.html" class="nav-logo">Quick<span>Bite</span></a>
+  <div class="nav-links">
+    <a href="../customer/home.html">← Back</a>
+    <a href="../customer/orders.html">📦 Orders</a>
+  </div>
+  <div class="nav-user" id="nav-user"></div>
+  <button class="theme-toggle" id="theme-toggle-btn" onclick="toggleTheme()">☀️ Light</button>
+</nav>
+
+<div id="restaurant-hero" class="restaurant-hero">
+  <div class="loader"><div class="spinner"></div></div>
+</div>
+
+<div style="display:flex; min-height:calc(100vh - 160px);">
+  <div style="flex:1; padding:2rem; min-width:0;" id="menu-area">
+    <div class="tabs">
+      <button class="tab-btn active" data-tab="menu-tab" data-group="rest" onclick="">Menu</button>
+      <button class="tab-btn" data-tab="reviews-tab" data-group="rest" onclick="">Reviews</button>
+    </div>
+    <div id="menu-tab" style="display:block;">
+      <div class="loader"><div class="spinner"></div></div>
+    </div>
+    <div id="reviews-tab" style="display:none;"></div>
+  </div>
+
+  <div class="cart-sidebar">
+    <div class="cart-title">🛒 Your Cart</div>
+    <div id="cart-items"><div class="cart-empty">Your cart is empty.<br>Add items from the menu!</div></div>
+    <div id="cart-total" style="display:none;">
+      <!-- Price breakdown -->
+      <div class="cart-total"><span>Subtotal</span><span class="cart-total-price" id="cart-subtotal">PKR 0</span></div>
+      <div style="display:flex;justify-content:space-between;font-size:0.85rem;color:var(--text-muted);padding:0.3rem 0;"><span>Delivery Fee</span><span>PKR 50</span></div>
+      <div style="display:flex;justify-content:space-between;font-size:0.85rem;color:var(--text-muted);padding:0.3rem 0;"><span>Platform Fee (5%)</span><span id="platform-fee-display">PKR 0</span></div>
+      <div style="display:flex;justify-content:space-between;font-size:0.85rem;color:var(--text-muted);padding:0.3rem 0;"><span>Rider Fee (10%)</span><span id="rider-fee-display">PKR 0</span></div>
+      <div style="font-size:0.72rem;color:var(--text-muted);padding:0.2rem 0 0.4rem 0;line-height:1.4;">ℹ️ Restaurant receives the original food amount. Platform earns 5% from you + 5% from restaurant per order.</div>
+      <div id="discount-row" style="display:none;justify-content:space-between;font-size:0.85rem;color:#22C55E;padding:0.3rem 0;font-weight:600;"><span>🎟️ Discount</span><span id="discount-display">-PKR 0</span></div>
+      <div id="loyalty-row" style="display:none;justify-content:space-between;font-size:0.85rem;color:#A855F7;padding:0.3rem 0;font-weight:600;"><span>⭐ Loyalty Redemption</span><span id="loyalty-display">-PKR 0</span></div>
+      <div class="cart-total" style="font-size:1.1rem;margin-top:0.5rem;"><span>Total</span><span class="cart-total-price" id="cart-grand-total">PKR 0</span></div>
+
+      <!-- Promo Code -->
+      <div class="form-group" style="margin-top:1rem;">
+        <label class="form-label">🎟️ Promo Code</label>
+        <div style="display:flex;gap:0.5rem;">
+          <input type="text" id="promo-input" class="form-control" placeholder="Enter code e.g. WELCOME20" style="text-transform:uppercase;flex:1;">
+          <button class="btn btn-outline" onclick="applyPromo()" style="padding:0.6rem 1rem;flex-shrink:0;">Apply</button>
+        </div>
+        <div id="promo-msg" style="font-size:0.8rem;margin-top:0.4rem;"></div>
+      </div>
+
+      <!-- Loyalty Points -->
+      <div id="loyalty-section" class="form-group" style="background:linear-gradient(135deg,rgba(168,85,247,0.1),rgba(168,85,247,0.05));border:1px solid rgba(168,85,247,0.2);border-radius:12px;padding:0.9rem;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.6rem;">
+          <span style="font-size:0.85rem;font-weight:700;">⭐ Your Loyalty Points</span>
+          <span style="font-family:'Syne',sans-serif;font-weight:800;color:#A855F7;" id="loyalty-pts-display">0 pts</span>
+        </div>
+        <div style="font-size:0.75rem;color:var(--text-muted);margin-bottom:0.6rem;">1 point = PKR 1 off your order (min 50 pts to redeem)</div>
+        <div style="display:flex;gap:0.5rem;align-items:center;">
+          <input type="number" id="redeem-input" class="form-control" placeholder="Points to redeem" min="50" style="font-size:0.85rem;">
+          <button class="btn" onclick="applyLoyalty()" style="background:#A855F7;color:white;padding:0.5rem 0.75rem;font-size:0.8rem;flex-shrink:0;">Use</button>
+          <button class="btn btn-outline" onclick="clearLoyalty()" style="padding:0.5rem 0.75rem;font-size:0.8rem;flex-shrink:0;">✕</button>
+        </div>
+      </div>
+
+      <!-- Delivery Address -->
+      <div class="form-group" style="margin-top:1rem;">
+        <label class="form-label">📍 Delivery Address</label>
+        <textarea id="delivery-address" class="form-control" rows="2" placeholder="Enter your delivery address..."></textarea>
+      </div>
+
+      <!-- Payment Method -->
+      <div class="form-group">
+        <label class="form-label">💳 Payment Method</label>
+        <select id="payment-method" class="form-control" onchange="togglePaymentFields()">
+          <option value="Cash on Delivery">💵 Cash on Delivery</option>
+          <option value="JazzCash">📱 JazzCash</option>
+          <option value="EasyPaisa">📱 EasyPaisa</option>
+          <option value="Card">💳 Credit/Debit Card</option>
+        </select>
+      </div>
+
+      <!-- Dynamic Payment Fields -->
+      <div id="payment-extra-fields" style="display:none;">
+        <!-- Mobile Money (JazzCash / EasyPaisa) -->
+        <div id="mobile-money-fields" style="display:none;" class="form-group">
+          <label class="form-label" id="mobile-money-label">📱 JazzCash Number</label>
+          <input type="tel" id="mobile-money-number" class="form-control" placeholder="03XX-XXXXXXX" maxlength="11">
+          <div style="font-size:0.75rem;color:var(--text-muted);margin-top:0.3rem;">Enter the registered mobile number</div>
+        </div>
+        <!-- Card Fields -->
+        <div id="card-fields" style="display:none;">
+          <div class="form-group">
+            <label class="form-label">💳 Card Number</label>
+            <input type="text" id="card-number" class="form-control" placeholder="XXXX XXXX XXXX XXXX" maxlength="19" oninput="formatCardNumber(this)">
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem;">
+            <div class="form-group">
+              <label class="form-label">Expiry Date</label>
+              <input type="text" id="card-expiry" class="form-control" placeholder="MM/YY" maxlength="5" oninput="formatExpiry(this)">
+            </div>
+            <div class="form-group">
+              <label class="form-label">CVV</label>
+              <input type="password" id="card-cvv" class="form-control" placeholder="•••" maxlength="3">
+            </div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Cardholder Name</label>
+            <input type="text" id="card-name" class="form-control" placeholder="Name on card">
+          </div>
+          <div style="display:flex;align-items:center;gap:0.5rem;font-size:0.75rem;color:var(--text-muted);margin-bottom:0.75rem;">
+            🔒 Your card details are secure and encrypted
+          </div>
+        </div>
+      </div>
+
+      <!-- Special Instructions -->
+      <div class="form-group">
+        <label class="form-label">📝 Special Instructions</label>
+        <input type="text" id="special-instructions" class="form-control" placeholder="Extra sauce, no onions...">
+      </div>
+
+      <button class="btn btn-primary btn-full btn-lg" onclick="placeOrder()">Place Order →</button>
+    </div>
+  </div>
+</div>
+
+<!-- Order Success Modal -->
+<div class="modal-overlay" id="order-success-modal">
+  <div class="modal" style="text-align:center;">
+    <div style="font-size:4rem;margin-bottom:1rem;">🎉</div>
+    <div class="modal-title" style="font-size:1.5rem;margin-bottom:0.5rem;">Order Placed!</div>
+    <p style="color:var(--text-muted);margin-bottom:1.5rem;">Your order has been received. We'll start preparing it soon!</p>
+    <div style="display:flex;gap:0.75rem;justify-content:center;">
+      <a href="../customer/orders.html" class="btn btn-primary">Track Order</a>
+      <a href="../customer/home.html" class="btn btn-outline">Order More</a>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+<script src="../../js/shared.js"></script>
+<script>
+  const user = requireAuth('customer');
+  renderUserBadge('nav-user');
+
+  const params = new URLSearchParams(window.location.search);
+  const rid = parseInt(params.get('id'));
+  let restaurant = null;
+  let cart = {}; // item_id -> {item, qty}
+
+  async function loadRestaurant() {
+    restaurant = await GET(`/restaurants/${rid}`);
+    if (!restaurant) { document.getElementById('restaurant-hero').innerHTML='<p>Restaurant not found</p>'; return; }
+
+    document.title = `QuickBite — ${restaurant.name}`;
+    document.getElementById('restaurant-hero').innerHTML = `
+      <div style="width:90px;height:90px;border-radius:16px;overflow:hidden;flex-shrink:0;background:var(--bg3);display:flex;align-items:center;justify-content:center;font-size:3rem;">
+        ${restaurant.image_filename
+          ? `<img src="http://127.0.0.1:5000/uploads/${restaurant.image_filename}" style="width:90px;height:90px;object-fit:cover;" onerror="this.outerHTML='${cuisineEmoji(restaurant.cuisine)}'">` 
+          : cuisineEmoji(restaurant.cuisine)}
+      </div>
+      <div class="hero-info">
+        <h1>${restaurant.name}</h1>
+        <div class="hero-meta">
+          <span>🍽️ ${restaurant.cuisine}</span>
+          <span>⭐ ${restaurant.rating}</span>
+          <span>🕐 ${restaurant.delivery_time} min</span>
+          <span>📍 ${restaurant.location}</span>
+        </div>
+      </div>`;
+
+    renderMenu();
+    loadReviews();
+    initTabs();
+  }
+
+  function renderMenu() {
+    const el = document.getElementById('menu-tab');
+    if (!restaurant.categories?.length) { el.innerHTML='<div class="empty-state"><p class="empty-text">No items available</p></div>'; return; }
+    el.innerHTML = restaurant.categories.map(cat => `
+      <div class="menu-section">
+        <div class="menu-section-title">${cat.name}</div>
+        <div class="menu-grid">
+          ${cat.items.map(item => `
+            <div class="menu-item-card" id="item-${item.id}">
+              <div class="item-name">${item.name}</div>
+              <div class="item-desc">${item.description || ''}</div>
+              <div class="item-footer">
+                <div class="item-price">PKR ${item.price}</div>
+                <div class="qty-controls" id="qty-${item.id}">
+                  <button class="btn btn-primary btn-sm" onclick='addToCart(${JSON.stringify(item)})'>+ Add</button>
+                </div>
+              </div>
+            </div>`).join('')}
+        </div>
+      </div>`).join('');
+  }
+
+  async function loadReviews() {
+    const data = await GET(`/reviews/restaurant/${rid}`);
+    const el = document.getElementById('reviews-tab');
+    if (!data?.length) { el.innerHTML='<div class="empty-state"><div class="empty-icon">⭐</div><p class="empty-text">No reviews yet. Be the first!</p></div>'; return; }
+    el.innerHTML = data.map(r => `
+      <div class="review-card">
+        <div class="review-stars">${'⭐'.repeat(r.rating)}${'☆'.repeat(5-r.rating)}</div>
+        <p style="font-size:0.9rem;">${r.comment || 'No comment'}</p>
+        <div class="review-author">${r.customer_name} • ${timeAgo(r.created_at)}</div>
+      </div>`).join('');
+  }
+
+  function addToCart(item) {
+    if (!cart[item.id]) cart[item.id] = { item, qty: 0 };
+    cart[item.id].qty++;
+    updateCartUI();
+    updateQtyControl(item.id);
+  }
+
+  function removeFromCart(itemId) {
+    if (!cart[itemId]) return;
+    cart[itemId].qty--;
+    if (cart[itemId].qty <= 0) delete cart[itemId];
+    updateCartUI();
+    updateQtyControl(itemId);
+  }
+
+  function updateQtyControl(itemId) {
+    const el = document.getElementById(`qty-${itemId}`);
+    if (!el) return;
+    const qty = cart[itemId]?.qty || 0;
+    if (qty === 0) {
+      el.innerHTML = `<button class="btn btn-primary btn-sm" onclick='addToCart(${JSON.stringify(cart[itemId]?.item || {id:itemId})})'>+ Add</button>`;
+    } else {
+      el.innerHTML = `
+        <button class="qty-btn" onclick="removeFromCart(${itemId})">−</button>
+        <span class="qty-display">${qty}</span>
+        <button class="qty-btn" onclick="addToCart(${JSON.stringify(cart[itemId].item)})">+</button>`;
+    }
+  }
+
+  let promoApplied = null;
+  let loyaltyRedeem = 0;
+  let loyaltyPoints = 0;
+
+  async function loadLoyaltyPoints() {
+    const data = await GET(`/loyalty/${user.user_id}`);
+    if (data) {
+      loyaltyPoints = data.total_points || 0;
+      document.getElementById('loyalty-pts-display').textContent = `${loyaltyPoints} pts`;
+      document.getElementById('redeem-input').max = loyaltyPoints;
+    }
+  }
+
+  function updateCartUI() {
+    const items = Object.values(cart);
+    const el = document.getElementById('cart-items');
+    const totalEl = document.getElementById('cart-total');
+    if (!items.length) {
+      el.innerHTML = '<div class="cart-empty">Your cart is empty.<br>Add items from the menu!</div>';
+      totalEl.style.display = 'none';
+      return;
+    }
+    const sub = items.reduce((s, {item, qty}) => s + item.price * qty, 0);
+    const platformFee = Math.round(sub * 0.05);
+    const riderFee = Math.round(sub * 0.10);
+    const promoDiscount = promoApplied ? promoApplied.discount_amount : 0;
+    const total = Math.max(0, sub + 50 + platformFee + riderFee - promoDiscount - loyaltyRedeem);
+
+    el.innerHTML = items.map(({item, qty}) => `
+      <div class="cart-item">
+        <div>
+          <div class="cart-item-name">${item.name}</div>
+          <div class="cart-item-price">PKR ${(item.price * qty).toFixed(0)}</div>
+        </div>
+        <div class="qty-controls">
+          <button class="qty-btn" onclick="removeFromCart(${item.id})">−</button>
+          <span class="qty-display">${qty}</span>
+          <button class="qty-btn" onclick='addToCart(${JSON.stringify(item)})'>+</button>
+        </div>
+      </div>`).join('');
+
+    document.getElementById('cart-subtotal').textContent = `PKR ${sub.toFixed(0)}`;
+    document.getElementById('platform-fee-display').textContent = `PKR ${platformFee}`;
+    document.getElementById('rider-fee-display').textContent = `PKR ${riderFee}`;
+    document.getElementById('cart-grand-total').textContent = `PKR ${total.toFixed(0)}`;
+
+    // Show/hide discount rows
+    const dRow = document.getElementById('discount-row');
+    if (promoApplied) {
+      dRow.style.display = 'flex';
+      document.getElementById('discount-display').textContent = `-PKR ${promoDiscount.toFixed(0)}`;
+    } else dRow.style.display = 'none';
+
+    const lRow = document.getElementById('loyalty-row');
+    if (loyaltyRedeem > 0) {
+      lRow.style.display = 'flex';
+      document.getElementById('loyalty-display').textContent = `-PKR ${loyaltyRedeem}`;
+    } else lRow.style.display = 'none';
+
+    totalEl.style.display = 'block';
+  }
+
+  async function applyPromo() {
+    const code = document.getElementById('promo-input').value.trim().toUpperCase();
+    if (!code) { toast('Enter a promo code', 'error'); return; }
+    const items = Object.values(cart);
+    if (!items.length) { toast('Add items to cart first', 'error'); return; }
+    const sub = items.reduce((s, {item, qty}) => s + item.price * qty, 0);
+    const msgEl = document.getElementById('promo-msg');
+    msgEl.innerHTML = '<span style="color:var(--text-muted);">Checking...</span>';
+    const data = await POST('/promo/validate', { code, order_total: sub });
+    if (!data) {
+      // Try a GET to see if backend is reachable at all
+      const ping = await GET('/test');
+      if (!ping) {
+        msgEl.innerHTML = '<span style="color:var(--danger);">❌ Backend offline. Run: python app.py</span>';
+      } else {
+        msgEl.innerHTML = '<span style="color:var(--danger);">❌ Server error applying promo. Try again.</span>';
+      }
+      return;
+    }
+    if (data.valid) {
+      promoApplied = { ...data, discount_amount: parseFloat(data.discount_amount) || 0 };
+      msgEl.innerHTML = `<span style="color:#22C55E;font-weight:600;">✅ ${data.message}</span>`;
+      updateCartUI();
+      toast(data.message);
+    } else {
+      promoApplied = null;
+      msgEl.innerHTML = `<span style="color:var(--danger);">❌ ${data.error}</span>`;
+      updateCartUI();
+    }
+  }
+
+  function applyLoyalty() {
+    const pts = parseInt(document.getElementById('redeem-input').value) || 0;
+    if (pts < 50) { toast('Minimum 50 points to redeem', 'error'); return; }
+    if (pts > loyaltyPoints) { toast('Not enough points', 'error'); return; }
+    loyaltyRedeem = pts;
+    toast(`⭐ ${pts} points will be redeemed for PKR ${pts} off!`);
+    updateCartUI();
+  }
+
+  function clearLoyalty() {
+    loyaltyRedeem = 0;
+    document.getElementById('redeem-input').value = '';
+    updateCartUI();
+  }
+
+  async function placeOrder() {
+    const items = Object.values(cart);
+    if (!items.length) { toast('Your cart is empty', 'error'); return; }
+    const address = document.getElementById('delivery-address').value.trim();
+    if (!address) { toast('Please enter delivery address', 'error'); return; }
+    if (!validatePaymentFields()) return;
+
+    const sub = items.reduce((s, {item, qty}) => s + item.price * qty, 0);
+    const platformFee = Math.round(sub * 0.05);
+    const riderFee = Math.round(sub * 0.10);
+    const promoDiscount = promoApplied ? promoApplied.discount_amount : 0;
+    const total = Math.max(0, sub + 50 + platformFee + riderFee - promoDiscount - loyaltyRedeem);
+
+    const body = {
+      customer_id: user.user_id,
+      restaurant_id: rid,
+      subtotal: sub,
+      delivery_fee: 50,
+      promo_code: promoApplied?.code || null,
+      promo_discount: promoDiscount,
+      loyalty_discount: loyaltyRedeem,
+      delivery_address: address,
+      special_instructions: document.getElementById('special-instructions').value,
+      payment_method: document.getElementById('payment-method').value,
+      estimated_time: restaurant.delivery_time + 10,
+      items: items.map(({item, qty}) => ({ item_id: item.id, quantity: qty, unit_price: item.price }))
+    };
+
+    const res = await POST('/orders', body);
+    if (res?.success) {
+      const pointsEarned = res.points_earned || 0;
+      cart = {}; promoApplied = null; loyaltyRedeem = 0;
+      updateCartUI();
+      loadLoyaltyPoints(); // refresh points display
+      // Show points earned in modal
+      const existing = document.querySelector('.extra-pts');
+      if (existing) existing.remove();
+      if (pointsEarned > 0) {
+        const msg = document.createElement('p');
+        msg.className = 'extra-pts';
+        msg.style.cssText = 'color:#A855F7;font-weight:700;margin-bottom:0.75rem;font-size:1rem;';
+        msg.textContent = `⭐ You earned ${pointsEarned} loyalty point${pointsEarned > 1 ? 's' : ''}!`;
+        const modal = document.querySelector('#order-success-modal .modal');
+        modal.insertBefore(msg, modal.querySelector('p'));
+      }
+      openModal('order-success-modal');
+    } else toast('Order failed, please try again', 'error');
+  }
+
+  loadLoyaltyPoints();
+
+  loadRestaurant();
+
+  // ── Payment Field Logic ──────────────────────────────────────────────────
+  function togglePaymentFields() {
+    const method = document.getElementById('payment-method').value;
+    const extraFields = document.getElementById('payment-extra-fields');
+    const mobileFields = document.getElementById('mobile-money-fields');
+    const cardFields = document.getElementById('card-fields');
+    const mobileLabel = document.getElementById('mobile-money-label');
+
+    extraFields.style.display = 'none';
+    mobileFields.style.display = 'none';
+    cardFields.style.display = 'none';
+
+    if (method === 'JazzCash' || method === 'EasyPaisa') {
+      extraFields.style.display = 'block';
+      mobileFields.style.display = 'block';
+      mobileLabel.textContent = method === 'JazzCash' ? '📱 JazzCash Number' : '📱 EasyPaisa Number';
+      document.getElementById('mobile-money-number').placeholder = method === 'JazzCash' ? '03XX-XXXXXXX' : '03XX-XXXXXXX';
+    } else if (method === 'Card') {
+      extraFields.style.display = 'block';
+      cardFields.style.display = 'block';
+    }
+  }
+
+  function formatCardNumber(input) {
+    let v = input.value.replace(/\D/g, '').substring(0, 16);
+    input.value = v.replace(/(.{4})/g, '$1 ').trim();
+  }
+
+  function formatExpiry(input) {
+    let v = input.value.replace(/\D/g, '').substring(0, 4);
+    if (v.length >= 2) v = v.substring(0, 2) + '/' + v.substring(2);
+    input.value = v;
+  }
+
+  function validatePaymentFields() {
+    const method = document.getElementById('payment-method').value;
+    if (method === 'JazzCash' || method === 'EasyPaisa') {
+      const num = document.getElementById('mobile-money-number').value.replace(/\D/g, '');
+      if (num.length < 11) { toast(`Enter a valid ${method} number`, 'error'); return false; }
+    } else if (method === 'Card') {
+      const cardNum = document.getElementById('card-number').value.replace(/\s/g, '');
+      const expiry = document.getElementById('card-expiry').value;
+      const cvv = document.getElementById('card-cvv').value;
+      const name = document.getElementById('card-name').value.trim();
+      if (cardNum.length < 16) { toast('Enter a valid 16-digit card number', 'error'); return false; }
+      if (!/^\d{2}\/\d{2}$/.test(expiry)) { toast('Enter expiry as MM/YY', 'error'); return false; }
+      if (cvv.length < 3) { toast('Enter a valid 3-digit CVV', 'error'); return false; }
+      if (!name) { toast('Enter the cardholder name', 'error'); return false; }
+    }
+    return true;
+  }
+</script>
+</body>
+</html>

@@ -1,0 +1,51 @@
+[2026-03-08T17:52:17] ======================================================================
+[2026-03-08T17:52:17] TRANSACTION ROLLBACK DEMONSTRATION — QuickBite Phase 2
+[2026-03-08T17:52:17] ======================================================================
+[2026-03-08T17:52:17] 
+[2026-03-08T17:52:17] SCENARIO 1A: Place order with menu item from wrong restaurant
+[2026-03-08T17:52:17] ------------------------------------------------------------
+[2026-03-08T17:52:17]   db.execute('BEGIN')  ← transaction opened
+[2026-03-08T17:52:17]   Step 1 OK — INSERT orders → order_id=1
+[2026-03-08T17:52:17]   ValueError: Menu item 99 not available at restaurant 1
+[2026-03-08T17:52:17]   db.execute('ROLLBACK')  ← entire transaction rolled back
+[2026-03-08T17:52:17]   VERIFY — orders table row count = 0 (expected 0) ✓ ROLLBACK CONFIRMED
+[2026-03-08T17:52:17] 
+[2026-03-08T17:52:17] SCENARIO 1B: Place order with unavailable menu item (is_available=0)
+[2026-03-08T17:52:17] ------------------------------------------------------------
+[2026-03-08T17:52:17]   db.execute('BEGIN')  ← transaction opened
+[2026-03-08T17:52:17]   Step 1 OK — INSERT orders → order_id=1
+[2026-03-08T17:52:17]   ValueError: Menu item 2 (Pizza) is not available
+[2026-03-08T17:52:17]   db.execute('ROLLBACK')  ← entire transaction rolled back
+[2026-03-08T17:52:17]   VERIFY — orders table row count = 0 (expected 0) ✓ ROLLBACK CONFIRMED
+[2026-03-08T17:52:17] 
+[2026-03-08T17:52:17] SCENARIO 1C: Place order with exhausted promo code (used_count >= max_uses)
+[2026-03-08T17:52:17] ------------------------------------------------------------
+[2026-03-08T17:52:17]   db.execute('BEGIN')  ← transaction opened
+[2026-03-08T17:52:17]   Step 1 OK — INSERT orders → order_id=1
+[2026-03-08T17:52:17]   Step 2 OK — INSERT order_items
+[2026-03-08T17:52:17]   ValueError: Promo code 'USED_UP' has reached its usage limit (100/100)
+[2026-03-08T17:52:17]   db.execute('ROLLBACK')  ← entire transaction rolled back
+[2026-03-08T17:52:17]   VERIFY — orders table row count = 0 (expected 0) ✓ ROLLBACK CONFIRMED
+[2026-03-08T17:52:17] 
+[2026-03-08T17:52:17] SCENARIO 2A: Produce order with insufficient loyalty points (need 50, have 5)
+[2026-03-08T17:52:17] ------------------------------------------------------------
+[2026-03-08T17:52:17]   db.execute('BEGIN')  ← transaction opened
+[2026-03-08T17:52:17]   Step 1 OK — INSERT order → order_id=1
+[2026-03-08T17:52:17]   Step 4 — customer has 5 loyalty points, needs 50
+[2026-03-08T17:52:17]   ValueError: Insufficient loyalty points (have 5, need 50)
+[2026-03-08T17:52:17]   db.execute('ROLLBACK')  ← entire transaction rolled back
+[2026-03-08T17:52:17]   VERIFY — orders table row count = 0 (expected 0) ✓ ROLLBACK CONFIRMED
+[2026-03-08T17:52:17] 
+[2026-03-08T17:52:17] SCENARIO 3: Successful order — full commit
+[2026-03-08T17:52:17] ------------------------------------------------------------
+[2026-03-08T17:52:17]   db.execute('BEGIN')
+[2026-03-08T17:52:17]   Step 1 OK — INSERT orders → order_id=1
+[2026-03-08T17:52:17]   Step 2 OK — INSERT order_items (item validated)
+[2026-03-08T17:52:17]   Step 4 OK — loyalty points +5
+[2026-03-08T17:52:17]   db.execute('COMMIT')  ← transaction committed successfully
+[2026-03-08T17:52:17]   VERIFY — orders=1, loyalty_points=10 ✓ COMMIT CONFIRMED
+[2026-03-08T17:52:17] 
+[2026-03-08T17:52:17] ======================================================================
+[2026-03-08T17:52:17] SUMMARY: All 4 rollback scenarios demonstrated + 1 successful commit
+[2026-03-08T17:52:17] Audit trail: 0 entries
+[2026-03-08T17:52:17] ======================================================================

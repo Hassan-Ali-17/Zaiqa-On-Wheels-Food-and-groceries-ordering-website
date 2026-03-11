@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>QuickBite — Profile</title>
+  <link rel="stylesheet" href="../../css/main.css">
+  <style>
+    .profile-hero { display:flex; align-items:center; gap:1.5rem; padding:2rem; background:var(--card); border:1px solid var(--border); border-radius:20px; margin-bottom:1.5rem; }
+    .avatar { width:80px; height:80px; border-radius:50%; background:linear-gradient(135deg,var(--primary),#FF8C00); display:flex; align-items:center; justify-content:center; font-size:2rem; font-family:'Syne',sans-serif; font-weight:800; color:white; flex-shrink:0; }
+    .profile-name { font-family:'Syne',sans-serif; font-size:1.4rem; font-weight:800; }
+    .profile-email { color:var(--text-muted); font-size:0.9rem; }
+    .info-row { display:flex; justify-content:space-between; padding:0.75rem 0; border-bottom:1px solid var(--border); }
+    .info-label { color:var(--text-muted); font-size:0.9rem; }
+    .info-value { font-weight:500; font-size:0.9rem; }
+  </style>
+</head>
+<body>
+<nav class="navbar">
+  <a href="home.html" class="nav-logo">Quick<span>Bite</span></a>
+  <div class="nav-links">
+    <a href="home.html">🏠 Home</a>
+    <a href="orders.html">📦 My Orders</a>
+    <a href="chat.html">💬 Support</a>
+    <a href="profile.html" class="active">👤 Profile</a>
+  </div>
+  <div class="nav-user" id="nav-user"></div>
+  <button class="theme-toggle" id="theme-toggle-btn" onclick="toggleTheme()">☀️ Light</button>
+</nav>
+<div style="padding:2rem;max-width:600px;margin:0 auto;">
+  <div class="page-header">
+    <div class="page-title">My Profile</div>
+  </div>
+  <div class="profile-hero" id="profile-hero"></div>
+  <div class="card" id="profile-stats" style="margin-bottom:1.5rem;"></div>
+  <button class="btn btn-danger btn-full" onclick="logout()">Sign Out</button>
+</div>
+<div id="toast"></div>
+<script src="../../js/shared.js"></script>
+<script>
+  const user = requireAuth('customer');
+  renderUserBadge('nav-user');
+
+  const initials = user.name.split(' ').map(n=>n[0]).join('').substring(0,2).toUpperCase();
+  document.getElementById('profile-hero').innerHTML = `
+    <div class="avatar">${initials}</div>
+    <div>
+      <div class="profile-name">${user.name}</div>
+      <div class="profile-email">${user.email}</div>
+      <div style="margin-top:0.5rem;"><span class="badge badge-customer">Customer</span></div>
+    </div>`;
+
+  async function loadStats() {
+    const orders = await GET(`/orders/customer/${user.user_id}`);
+    const delivered = (orders||[]).filter(o=>o.status==='Delivered');
+    const total = delivered.reduce((s,o)=>s+o.total_amount,0);
+    document.getElementById('profile-stats').innerHTML = `
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:1rem;text-align:center;">
+        <div><div style="font-family:'Syne',sans-serif;font-size:1.75rem;font-weight:800;">${(orders||[]).length}</div><div style="color:var(--text-muted);font-size:0.8rem;">Total Orders</div></div>
+        <div><div style="font-family:'Syne',sans-serif;font-size:1.75rem;font-weight:800;">${delivered.length}</div><div style="color:var(--text-muted);font-size:0.8rem;">Delivered</div></div>
+        <div><div style="font-family:'Syne',sans-serif;font-size:1.75rem;font-weight:800;color:var(--primary);">PKR ${Math.round(total/1000)}K</div><div style="color:var(--text-muted);font-size:0.8rem;">Spent</div></div>
+      </div>`;
+  }
+  loadStats();
+</script>
+</body>
+</html>

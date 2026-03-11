@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>QuickBite Admin — Support Chat</title>
+  <link rel="stylesheet" href="../../css/main.css">
+  <style>
+    .chat-layout { display:flex; height:calc(100vh - 64px - 4rem); gap:1.5rem; }
+    .conversations-panel { width:280px; flex-shrink:0; }
+    .conv-item { display:flex; align-items:center; gap:0.75rem; padding:0.75rem; border-radius:12px; cursor:pointer; transition:background 0.2s; border:1px solid transparent; }
+    .conv-item:hover { background:var(--bg3); }
+    .conv-item.active { background:rgba(255,77,0,0.08); border-color:var(--primary); }
+    .conv-avatar { width:40px;height:40px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:1.1rem;flex-shrink:0; }
+    .conv-name { font-size:0.9rem; font-weight:600; }
+    .conv-preview { font-size:0.75rem; color:var(--text-muted); white-space:nowrap;overflow:hidden;text-overflow:ellipsis; }
+    .unread-dot { width:8px;height:8px;border-radius:50%;background:var(--primary);flex-shrink:0; }
+    .chat-main { flex:1; display:flex; flex-direction:column; background:var(--card); border:1px solid var(--border); border-radius:16px; overflow:hidden; }
+    .chat-header { padding:1rem 1.5rem; border-bottom:1px solid var(--border); display:flex; align-items:center; gap:0.75rem; background:var(--bg2); }
+    .chat-body { flex:1; overflow-y:auto; padding:1.5rem; display:flex; flex-direction:column; gap:0.75rem; }
+    .chat-footer-panel { padding:1rem 1.5rem; border-top:1px solid var(--border); display:flex; gap:0.75rem; }
+    .no-chat { display:flex; flex-direction:column; align-items:center; justify-content:center; height:100%; color:var(--text-muted); }
+  </style>
+</head>
+<body>
+<nav class="navbar">
+  <a href="dashboard.html" class="nav-logo">Quick<span>Bite</span> <span style="font-size:0.7rem;color:var(--primary);background:rgba(255,77,0,0.15);padding:2px 8px;border-radius:4px;margin-left:4px;">ADMIN</span></a>
+  <div class="nav-user" id="nav-user"></div>
+  <button class="theme-toggle" id="theme-toggle-btn" onclick="toggleTheme()">☀️ Light</button>
+</nav>
+<div class="app-layout">
+  <nav class="sidebar">
+    <div class="sidebar-section">Main</div>
+    <a href="dashboard.html" class="sidebar-link"><span class="sidebar-icon">📊</span> Dashboard</a>
+    <a href="orders.html" class="sidebar-link"><span class="sidebar-icon">📦</span> Orders</a>
+    <a href="restaurants.html" class="sidebar-link"><span class="sidebar-icon">🍽️</span> Restaurants</a>
+    <div class="sidebar-section">People</div>
+    <a href="riders.html" class="sidebar-link"><span class="sidebar-icon">🛵</span> Riders</a>
+    <a href="users.html" class="sidebar-link"><span class="sidebar-icon">👥</span> Users</a>
+    <a href="chat.html" class="sidebar-link active"><span class="sidebar-icon">💬</span> Support Chat</a>
+    <div class="sidebar-section">System</div>
+    <a href="promos.html" class="sidebar-link"><span class="sidebar-icon">🎟️</span> Promo Codes</a>
+    <a href="audit.html" class="sidebar-link"><span class="sidebar-icon">📋</span> Audit Log</a>
+  </nav>
+  <main class="main-content" style="padding:2rem;">
+    <div class="page-header">
+      <div class="page-title">Support Chat</div>
+      <div class="page-subtitle">Reply to customer and rider messages</div>
+    </div>
+    <div class="chat-layout">
+      <div class="conversations-panel">
+        <div style="font-size:0.75rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:0.75rem;">Conversations</div>
+        <div id="conversations"><div class="loader"><div class="spinner"></div></div></div>
+      </div>
+      <div class="chat-main">
+        <div id="chat-area">
+          <div class="no-chat">
+            <div style="font-size:3rem;margin-bottom:1rem;">💬</div>
+            <p>Select a conversation to reply</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<div id="toast"></div>
+<script src="../../js/shared.js"></script>
+<script>
+  const user = requireAuth('admin');
+  renderUserBadge('nav-user');
+
+  let currentChat = null;
+  let chatPoll = null;
+
+  async function loadConversations() {
+    const data = await GET('/admin/conversations');
+    const el = document.getElementById('conversations');
+    if (!data?.length) { el.innerHTML='<p style="color:var(--text-muted);font-size:0.85rem;padding:0.5rem;">No conversations yet</p>'; return; }
+    el.innerHTML = data.map(c => `
+      <div class="conv-item ${currentChat===c.id?'active':''}" onclick="openChat(${c.id},'${c.name}','${c.role}')">
+        <div class="conv-avatar" style="background:${c.role==='customer'?'rgba(59,130,246,0.2)':'rgba(168,85,247,0.2)'}">
+          ${c.role==='customer'?'👤':'🛵'}
+        </div>
+        <div style="flex:1;min-width:0;">
+          <div class="conv-name">${c.name}</div>
+          <div class="conv-preview">${c.last_message || 'No messages'}</div>
+        </div>
+        ${c.unread>0 ? '<div class="unread-dot"></div>' : ''}
+      </div>`).join('');
+  }
+
+  async function openChat(userId, name, role) {
+    clearInterval(chatPoll);
+    currentChat = userId;
+    document.getElementById('chat-area').innerHTML = `
+      <div class="chat-header">
+        <div style="font-size:1.5rem;">${role==='customer'?'👤':'🛵'}</div>
+        <div><div style="font-weight:700;">${name}</div><div style="font-size:0.8rem;color:var(--text-muted);">${role}</div></div>
+      </div>
+      <div class="chat-body" id="chat-msgs"></div>
+      <div class="chat-footer-panel">
+        <input type="text" id="admin-msg-input" class="form-control" placeholder="Type a reply...">
+        <button class="btn btn-primary" onclick="sendAdminMsg()">Send</button>
+      </div>`;
+    document.getElementById('admin-msg-input').addEventListener('keydown', e => { if(e.key==='Enter') sendAdminMsg(); });
+    await loadChatMsgs();
+    chatPoll = setInterval(loadChatMsgs, 3000);
+    loadConversations();
+  }
+
+  async function loadChatMsgs() {
+    if (!currentChat) return;
+    const data = await GET(`/messages/${user.user_id}/${currentChat}`);
+    const box = document.getElementById('chat-msgs');
+    if (!box || !data) return;
+    box.innerHTML = data.length ? data.map(m=>`
+      <div>
+        <div class="message-bubble ${m.sender_id===user.user_id?'sent':'received'}">${m.message}</div>
+        <div style="text-align:${m.sender_id===user.user_id?'right':'left'};font-size:0.7rem;color:var(--text-muted);margin-top:2px;">${timeAgo(m.created_at)}</div>
+      </div>`).join('') : '<div class="empty-state"><div class="empty-icon">💬</div><p class="empty-text">No messages yet</p></div>';
+    box.scrollTop = box.scrollHeight;
+  }
+
+  async function sendAdminMsg() {
+    const inp = document.getElementById('admin-msg-input');
+    if (!inp?.value.trim() || !currentChat) return;
+    await POST('/messages', { sender_id:user.user_id, receiver_id:currentChat, message:inp.value.trim() });
+    inp.value = '';
+    await loadChatMsgs();
+  }
+
+  loadConversations();
+  setInterval(loadConversations, 10000);
+</script>
+</body>
+</html>

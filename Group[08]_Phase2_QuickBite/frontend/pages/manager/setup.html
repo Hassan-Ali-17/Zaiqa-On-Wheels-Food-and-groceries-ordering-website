@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>QuickBite — Setup Your Restaurant</title>
+  <link rel="stylesheet" href="../../css/main.css">
+  <style>
+    body { background: radial-gradient(ellipse at 60% 0%, rgba(255,77,0,0.1) 0%, transparent 50%), var(--bg); }
+    .setup-container { max-width:700px; margin:0 auto; padding:2rem; }
+    .setup-header { text-align:center; margin-bottom:2.5rem; }
+    .setup-header h1 { font-family:'Syne',sans-serif; font-size:2rem; font-weight:800; }
+    .setup-header p { color:var(--text-muted); margin-top:0.5rem; }
+    .step-indicator { display:flex; justify-content:center; gap:0; margin-bottom:2rem; }
+    .step-dot { width:36px; height:36px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:0.85rem; font-weight:700; border:2px solid var(--border); color:var(--text-muted); transition:all 0.3s; }
+    .step-dot.active { border-color:var(--primary); background:var(--primary); color:white; }
+    .step-dot.done { border-color:var(--success); background:var(--success); color:white; }
+    .step-line { width:60px; height:2px; background:var(--border); margin-top:17px; transition:background 0.3s; }
+    .step-line.done { background:var(--success); }
+    .image-upload { border:2px dashed var(--border); border-radius:16px; padding:2rem; text-align:center; cursor:pointer; transition:border-color 0.2s; }
+    .image-upload:hover { border-color:var(--primary); }
+    .image-preview { max-width:100%; max-height:200px; border-radius:12px; margin-top:1rem; object-fit:cover; display:none; }
+    .cuisine-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:0.5rem; }
+    .cuisine-chip { border:1px solid var(--border); border-radius:8px; padding:0.5rem; text-align:center; cursor:pointer; font-size:0.8rem; transition:all 0.2s; }
+    .cuisine-chip:hover,.cuisine-chip.selected { border-color:var(--primary); background:rgba(255,77,0,0.08); color:var(--primary); }
+  </style>
+</head>
+<body>
+<nav class="navbar">
+  <a href="../../index.html" class="nav-logo">Quick<span>Bite</span></a>
+  <div class="nav-user" id="nav-user"></div>
+  <button class="theme-toggle" id="theme-toggle-btn" onclick="toggleTheme()">☀️ Light</button>
+</nav>
+
+<div class="setup-container">
+  <div class="setup-header">
+    <div style="font-size:3rem;margin-bottom:0.75rem;">🍽️</div>
+    <h1>Set Up Your Restaurant</h1>
+    <p>Add your restaurant details. Admin will review and approve within 24 hours.</p>
+  </div>
+
+  <div class="step-indicator">
+    <div class="step-dot active" id="step1">1</div>
+    <div class="step-line" id="line1"></div>
+    <div class="step-dot" id="step2">2</div>
+    <div class="step-line" id="line2"></div>
+    <div class="step-dot" id="step3">3</div>
+  </div>
+
+  <!-- Step 1: Basic Info -->
+  <div id="panel-1">
+    <div class="card">
+      <div style="font-family:'Syne',sans-serif;font-weight:700;font-size:1.1rem;margin-bottom:1.5rem;">Basic Information</div>
+      <div class="form-group">
+        <label class="form-label">Restaurant Name *</label>
+        <input type="text" id="r-name" class="form-control" placeholder="e.g. Hassan's Kitchen">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Cuisine Type *</label>
+        <div class="cuisine-grid" id="cuisine-grid">
+          <div class="cuisine-chip selected" onclick="selectCuisine('Fast Food',this)">🍔 Fast Food</div>
+          <div class="cuisine-chip" onclick="selectCuisine('Pakistani',this)">🍛 Pakistani</div>
+          <div class="cuisine-chip" onclick="selectCuisine('Italian',this)">🍕 Italian</div>
+          <div class="cuisine-chip" onclick="selectCuisine('Chinese',this)">🥡 Chinese</div>
+          <div class="cuisine-chip" onclick="selectCuisine('Japanese',this)">🍣 Japanese</div>
+          <div class="cuisine-chip" onclick="selectCuisine('BBQ',this)">🔥 BBQ</div>
+          <div class="cuisine-chip" onclick="selectCuisine('Continental',this)">🥗 Continental</div>
+          <div class="cuisine-chip" onclick="selectCuisine('Desserts',this)">🍰 Desserts</div>
+          <div class="cuisine-chip" onclick="selectCuisine('Sandwiches',this)">🥪 Sandwiches</div>
+          <div class="cuisine-chip" onclick="selectCuisine('Thai',this)">🌶️ Thai</div>
+          <div class="cuisine-chip" onclick="selectCuisine('Grilled',this)">🍗 Grilled</div>
+          <div class="cuisine-chip" onclick="selectCuisine('Burgers',this)">🍔 Burgers</div>
+        </div>
+        <input type="hidden" id="r-cuisine" value="Fast Food">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Description</label>
+        <textarea id="r-desc" class="form-control" rows="3" placeholder="Tell customers about your restaurant..."></textarea>
+      </div>
+      <button class="btn btn-primary btn-full" onclick="goStep(2)">Next: Location & Contact →</button>
+    </div>
+  </div>
+
+  <!-- Step 2: Location & Photo -->
+  <div id="panel-2" style="display:none;">
+    <div class="card">
+      <div style="font-family:'Syne',sans-serif;font-weight:700;font-size:1.1rem;margin-bottom:1.5rem;">Location & Details</div>
+      <div class="form-group">
+        <label class="form-label">Location / Address *</label>
+        <input type="text" id="r-location" class="form-control" placeholder="e.g. DHA Phase 5, Lahore">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Phone Number</label>
+        <input type="text" id="r-phone" class="form-control" placeholder="03xx-xxxxxxx">
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;">
+        <div class="form-group">
+          <label class="form-label">Delivery Time (minutes)</label>
+          <input type="number" id="r-delivery" class="form-control" value="30" min="10" max="120">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Min. Order (PKR)</label>
+          <input type="number" id="r-minorder" class="form-control" value="0" min="0">
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Restaurant Photo</label>
+        <div class="image-upload" onclick="document.getElementById('rest-img-input').click()">
+          <div style="font-size:2rem;margin-bottom:0.5rem;">📸</div>
+          <div style="font-weight:600;margin-bottom:0.25rem;">Click to upload photo</div>
+          <div style="color:var(--text-muted);font-size:0.85rem;">JPG, PNG — max 5MB</div>
+          <img id="rest-img-preview" class="image-preview">
+        </div>
+        <input type="file" id="rest-img-input" accept="image/*" style="display:none" onchange="previewImage(this,'rest-img-preview')">
+      </div>
+      <div style="display:flex;gap:0.75rem;">
+        <button class="btn btn-outline" style="flex:1;" onclick="goStep(1)">← Back</button>
+        <button class="btn btn-primary" style="flex:2;" onclick="goStep(3)">Next: Review & Submit →</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Step 3: Review & Submit -->
+  <div id="panel-3" style="display:none;">
+    <div class="card">
+      <div style="font-family:'Syne',sans-serif;font-weight:700;font-size:1.1rem;margin-bottom:1.5rem;">Review & Submit</div>
+      <div id="review-summary" style="background:var(--bg3);border-radius:12px;padding:1.25rem;margin-bottom:1.5rem;"></div>
+      <div style="background:rgba(245,158,11,0.08);border:1px solid rgba(245,158,11,0.3);border-radius:12px;padding:1rem;margin-bottom:1.5rem;font-size:0.9rem;">
+        <strong>⏳ Review Process:</strong> After submission, admin will review your restaurant within 24 hours. You'll be able to add menu items while waiting for approval.
+      </div>
+      <div style="display:flex;gap:0.75rem;">
+        <button class="btn btn-outline" style="flex:1;" onclick="goStep(2)">← Back</button>
+        <button class="btn btn-primary" style="flex:2;" onclick="submitRestaurant()">Submit for Approval ✓</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+<script src="../../js/shared.js"></script>
+<script>
+  const user = requireAuth('manager');
+  if (user?.restaurant_id) window.location.href='dashboard.html';
+  renderUserBadge('nav-user');
+
+  let selectedCuisine = 'Fast Food';
+  let restImageB64 = null;
+
+  function selectCuisine(c, el) {
+    selectedCuisine = c;
+    document.getElementById('r-cuisine').value = c;
+    document.querySelectorAll('.cuisine-chip').forEach(x=>x.classList.remove('selected'));
+    el.classList.add('selected');
+  }
+
+  function previewImage(input, previewId) {
+    const file = input.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = e => {
+      const img = document.getElementById(previewId);
+      img.src = e.target.result;
+      img.style.display = 'block';
+      if (previewId === 'rest-img-preview') restImageB64 = e.target.result;
+    };
+    reader.readAsDataURL(file);
+  }
+
+  function goStep(n) {
+    if (n===2) {
+      if (!document.getElementById('r-name').value.trim()) { toast('Restaurant name required','error'); return; }
+    }
+    if (n===3) {
+      if (!document.getElementById('r-location').value.trim()) { toast('Location required','error'); return; }
+      // Fill review summary
+      document.getElementById('review-summary').innerHTML = `
+        <div style="display:flex;flex-direction:column;gap:0.6rem;font-size:0.9rem;">
+          <div style="display:flex;justify-content:space-between;"><span style="color:var(--text-muted);">Name</span><strong>${document.getElementById('r-name').value}</strong></div>
+          <div style="display:flex;justify-content:space-between;"><span style="color:var(--text-muted);">Cuisine</span><strong>${selectedCuisine}</strong></div>
+          <div style="display:flex;justify-content:space-between;"><span style="color:var(--text-muted);">Location</span><strong>${document.getElementById('r-location').value}</strong></div>
+          <div style="display:flex;justify-content:space-between;"><span style="color:var(--text-muted);">Delivery Time</span><strong>${document.getElementById('r-delivery').value} min</strong></div>
+          <div style="display:flex;justify-content:space-between;"><span style="color:var(--text-muted);">Min Order</span><strong>PKR ${document.getElementById('r-minorder').value||0}</strong></div>
+        </div>`;
+    }
+    for (let i=1;i<=3;i++) {
+      document.getElementById(`panel-${i}`).style.display = i===n?'block':'none';
+      const dot = document.getElementById(`step${i}`);
+      if (i<n) { dot.textContent='✓'; dot.className='step-dot done'; }
+      else if (i===n) { dot.className='step-dot active'; }
+      else { dot.textContent=i; dot.className='step-dot'; }
+      if (i<3) document.getElementById(`line${i}`).className = `step-line ${i<n?'done':''}`;
+    }
+  }
+
+  async function submitRestaurant() {
+    const res = await POST('/manager/restaurant', {
+      name: document.getElementById('r-name').value,
+      cuisine: selectedCuisine,
+      location: document.getElementById('r-location').value,
+      phone: document.getElementById('r-phone').value,
+      delivery_time: parseInt(document.getElementById('r-delivery').value)||30,
+      min_order: parseFloat(document.getElementById('r-minorder').value)||0,
+      description: document.getElementById('r-desc').value,
+      image: restImageB64,
+      manager_id: user.user_id
+    });
+    if (res?.success) {
+      toast('Restaurant submitted for approval!');
+      user.restaurant_id = res.restaurant_id;
+      user.restaurant_status = 'pending';
+      setUser(user);
+      setTimeout(()=>window.location.href='pending.html', 1200);
+    } else toast('Submission failed','error');
+  }
+</script>
+</body>
+</html>
