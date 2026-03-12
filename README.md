@@ -101,7 +101,7 @@ git clone https://github.com/Hassan-Ali-17/Zaiqa-On-Wheels-Food-and-groceries-or
 
 ### 2️⃣ Navigate to the Project Folder
 ```bash
-cd "Group[08]_Phase2_QuickBite"
+cd "Group08_Phase2_QuickBite"
 ```
 
 ### 3️⃣ Go to the Backend Directory
