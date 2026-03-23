@@ -1,0 +1,18 @@
+{
+  "name": "quickbite-frontend",
+  "version": "1.0.0",
+  "description": "QuickBite food delivery frontend — static HTML/JS/CSS",
+  "main": "src/index.html",
+  "scripts": {
+    "start": "python3 -m http.server 5500 --directory src",
+    "serve": "npx live-server src --port=5500",
+    "lint": "echo 'No build step required for static frontend'"
+  },
+  "keywords": ["food-delivery", "quickbite"],
+  "author": "QuickBite Team",
+  "license": "MIT",
+  "devDependencies": {
+    "live-server": "^1.2.2"
+  },
+  "notes": "This is a static HTML/CSS/JS frontend. No compilation needed. Open src/index.html directly or serve via Flask backend."
+}

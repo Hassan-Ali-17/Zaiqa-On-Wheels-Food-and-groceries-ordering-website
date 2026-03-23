@@ -1,0 +1,440 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>QuickBite Admin — Produce Management</title>
+  <link rel="stylesheet" href="../../css/main.css">
+  <style>
+    .produce-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 1.25rem;
+    }
+    .produce-admin-card {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      overflow: hidden;
+      transition: box-shadow 0.2s;
+      position: relative;
+    }
+    .produce-admin-card:hover { box-shadow: 0 4px 20px rgba(0,0,0,0.15); }
+    .produce-admin-card.out-of-stock { opacity: 0.65; border-color: var(--danger); }
+    .produce-admin-card.low-stock   { border-color: var(--warning); }
+
+    .card-img {
+      width: 100%; height: 160px; object-fit: cover; display: block;
+      background: var(--bg3);
+    }
+    .card-img-placeholder {
+      width: 100%; height: 160px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 4rem; background: var(--bg3);
+    }
+
+    .card-body { padding: 1rem; }
+    .card-name { font-weight: 700; font-size: 1.05rem; margin-bottom: 0.25rem; }
+    .card-category {
+      font-size: 0.75rem; font-weight: 600; text-transform: uppercase;
+      letter-spacing: 0.05em; margin-bottom: 0.75rem;
+    }
+    .cat-fruit     { color: #f97316; }
+    .cat-vegetable { color: #22c55e; }
+
+    .stock-bar-wrap { margin-bottom: 0.75rem; }
+    .stock-label {
+      display: flex; justify-content: space-between;
+      font-size: 0.8rem; margin-bottom: 0.3rem; color: var(--text-muted);
+    }
+    .stock-bar {
+      height: 8px; background: var(--bg3); border-radius: 4px; overflow: hidden;
+    }
+    .stock-fill {
+      height: 100%; border-radius: 4px; transition: width 0.4s ease;
+    }
+    .stock-fill.high   { background: #22c55e; }
+    .stock-fill.medium { background: #f59e0b; }
+    .stock-fill.low    { background: #ef4444; }
+
+    .status-pill {
+      display: inline-flex; align-items: center; gap: 0.3rem;
+      padding: 0.2rem 0.7rem; border-radius: 50px;
+      font-size: 0.75rem; font-weight: 700; margin-bottom: 0.75rem;
+    }
+    .pill-in-stock    { background: rgba(34,197,94,0.15);  color: #22c55e; }
+    .pill-low-stock   { background: rgba(245,158,11,0.15); color: #f59e0b; }
+    .pill-out-stock   { background: rgba(239,68,68,0.15);  color: #ef4444; }
+
+    .price-row {
+      display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.75rem;
+    }
+    .price-input {
+      width: 90px; padding: 0.3rem 0.5rem; border-radius: 8px;
+      border: 1px solid var(--border); background: var(--bg3);
+      color: var(--text); font-size: 0.9rem; font-weight: 600;
+    }
+    .price-input:focus { border-color: var(--primary); outline: none; }
+
+    .restock-row {
+      display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.75rem;
+    }
+    .restock-input {
+      flex: 1; padding: 0.35rem 0.5rem; border-radius: 8px;
+      border: 1px solid var(--border); background: var(--bg3);
+      color: var(--text); font-size: 0.9rem;
+    }
+    .restock-input:focus { border-color: #22c55e; outline: none; }
+
+    .card-actions { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+
+    .filter-bar {
+      display: flex; gap: 0.75rem; align-items: center;
+      flex-wrap: wrap; margin-bottom: 1.5rem;
+    }
+    .filter-chip {
+      padding: 0.4rem 1rem; border-radius: 50px;
+      border: 1px solid var(--border); background: var(--card-bg);
+      color: var(--text-muted); cursor: pointer; font-size: 0.85rem;
+      transition: all 0.2s;
+    }
+    .filter-chip.active {
+      background: var(--primary); color: #fff; border-color: var(--primary);
+    }
+    .search-box {
+      flex: 1; min-width: 200px; padding: 0.45rem 1rem;
+      border-radius: 50px; border: 1px solid var(--border);
+      background: var(--bg3); color: var(--text); font-size: 0.9rem;
+    }
+    .search-box:focus { border-color: var(--primary); outline: none; }
+
+    .summary-strip {
+      display: flex; gap: 1rem; flex-wrap: wrap; margin-bottom: 1.5rem;
+    }
+    .summary-pill {
+      padding: 0.5rem 1.25rem; border-radius: 50px;
+      font-size: 0.85rem; font-weight: 600;
+    }
+    .pill-green  { background: rgba(34,197,94,0.15);  color: #22c55e; }
+    .pill-yellow { background: rgba(245,158,11,0.15); color: #f59e0b; }
+    .pill-red    { background: rgba(239,68,68,0.15);  color: #ef4444; }
+    .pill-blue   { background: rgba(59,130,246,0.15); color: #3b82f6; }
+  </style>
+</head>
+<body>
+<nav class="navbar">
+  <a href="dashboard.html" class="nav-logo">Quick<span>Bite</span>
+    <span style="font-size:0.7rem;color:var(--primary);background:rgba(255,77,0,0.15);padding:2px 8px;border-radius:4px;margin-left:4px;">ADMIN</span>
+  </a>
+  <div class="nav-user" id="nav-user"></div>
+  <button class="theme-toggle" id="theme-toggle-btn" onclick="toggleTheme()">☀️ Light</button>
+</nav>
+
+<div class="app-layout">
+  <nav class="sidebar">
+    <div class="sidebar-section">Main</div>
+    <a href="dashboard.html"   class="sidebar-link"><span class="sidebar-icon">📊</span> Dashboard</a>
+    <a href="orders.html"      class="sidebar-link"><span class="sidebar-icon">📦</span> Orders</a>
+    <a href="restaurants.html" class="sidebar-link"><span class="sidebar-icon">🍽️</span> Restaurants</a>
+    <div class="sidebar-section">People</div>
+    <a href="riders.html"  class="sidebar-link"><span class="sidebar-icon">🛵</span> Riders</a>
+    <a href="users.html"   class="sidebar-link"><span class="sidebar-icon">👥</span> Users</a>
+    <a href="chat.html"    class="sidebar-link"><span class="sidebar-icon">💬</span> Support Chat</a>
+    <div class="sidebar-section">System</div>
+    <a href="produce.html" class="sidebar-link active"><span class="sidebar-icon">🥬</span> Produce Stock</a>
+    <a href="promos.html"  class="sidebar-link"><span class="sidebar-icon">🎟️</span> Promo Codes</a>
+    <a href="audit.html"   class="sidebar-link"><span class="sidebar-icon">📋</span> Audit Log</a>
+    <div style="margin-top:auto;padding-top:2rem;">
+      <button class="sidebar-link" onclick="logout()"
+        style="width:100%;background:none;border:none;cursor:pointer;color:var(--danger);">
+        <span class="sidebar-icon">🚪</span> Logout
+      </button>
+    </div>
+  </nav>
+
+  <main class="main-content">
+    <div class="page-header">
+      <div class="page-title">🥬 Produce Stock Management</div>
+      <div class="page-subtitle">Restock items, update prices, mark availability</div>
+    </div>
+
+    <!-- Summary Strip -->
+    <div class="summary-strip" id="summary-strip">
+      <div class="summary-pill pill-blue">Loading...</div>
+    </div>
+
+    <!-- Filter + Search -->
+    <div class="filter-bar">
+      <button class="filter-chip active" onclick="setFilter('all',  this)">🌿 All</button>
+      <button class="filter-chip"        onclick="setFilter('fruit',      this)">🍎 Fruits</button>
+      <button class="filter-chip"        onclick="setFilter('vegetable',  this)">🥦 Vegetables</button>
+      <button class="filter-chip"        onclick="setFilter('low',        this)">⚠️ Low Stock</button>
+      <button class="filter-chip"        onclick="setFilter('out',        this)">❌ Out of Stock</button>
+      <input class="search-box" id="search-box" placeholder="🔍 Search produce..." oninput="renderGrid()">
+      <button class="btn btn-success btn-sm" onclick="restockAll()">♻️ Restock All to 50kg</button>
+    </div>
+
+    <!-- Produce Grid -->
+    <div class="produce-grid" id="produce-grid">
+      <div class="loader"><div class="spinner"></div></div>
+    </div>
+  </main>
+</div>
+
+<!-- Restock Modal -->
+<div class="modal-overlay" id="restock-modal">
+  <div class="modal" style="max-width:380px;">
+    <div class="modal-title">♻️ Restock Item</div>
+    <p id="restock-item-name" style="color:var(--text-muted);margin-bottom:1rem;"></p>
+    <div class="form-group">
+      <label class="form-label">New Stock Amount (kg)</label>
+      <input type="number" id="restock-qty" class="form-control"
+             value="50" min="1" max="1000" step="0.5">
+      <div style="display:flex;gap:0.5rem;margin-top:0.5rem;flex-wrap:wrap;">
+        <button class="btn btn-outline btn-sm" onclick="document.getElementById('restock-qty').value=25">25 kg</button>
+        <button class="btn btn-outline btn-sm" onclick="document.getElementById('restock-qty').value=50">50 kg</button>
+        <button class="btn btn-outline btn-sm" onclick="document.getElementById('restock-qty').value=100">100 kg</button>
+        <button class="btn btn-outline btn-sm" onclick="document.getElementById('restock-qty').value=200">200 kg</button>
+      </div>
+    </div>
+    <div style="display:flex;gap:0.75rem;margin-top:1.25rem;">
+      <button class="btn btn-success" onclick="confirmRestock()" style="flex:1;">✅ Confirm Restock</button>
+      <button class="btn btn-outline" onclick="closeModal('restock-modal')" style="flex:1;">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+<script src="../../js/shared.js"></script>
+<script>
+  const user = requireAuth('admin');
+  renderUserBadge('nav-user');
+
+  let allProduce  = [];
+  let currentFilter = 'all';
+  let restockTarget = null;   // {id, name} of item being restocked
+
+  const BASE = 'http://127.0.0.1:5000';
+
+  // ── Stock thresholds ──────────────────────────────────────────────────────
+  const STOCK_MAX  = 100;   // treat 100kg as "full" for the progress bar
+  const LOW_THRESH = 15;    // below this = low stock warning
+
+  function stockLevel(item) {
+    if (!item.is_available || item.stock_kg <= 0) return 'out';
+    if (item.stock_kg <= LOW_THRESH)              return 'low';
+    return 'high';
+  }
+
+  function stockFillClass(item) {
+    const lvl = stockLevel(item);
+    if (lvl === 'out')  return 'low';     // red bar
+    if (lvl === 'low')  return 'medium';  // yellow bar
+    return 'high';                        // green bar
+  }
+
+  function stockPct(item) {
+    return Math.min(100, Math.round((item.stock_kg / STOCK_MAX) * 100));
+  }
+
+  // ── Load all produce ──────────────────────────────────────────────────────
+  async function loadProduce() {
+    showLoading(true);
+    const data = await GET('/admin/produce');
+    showLoading(false);
+    if (!data) { toast('Failed to load produce', 'error'); return; }
+    allProduce = data;
+    renderSummary();
+    renderGrid();
+  }
+
+  // ── Summary pills ─────────────────────────────────────────────────────────
+  function renderSummary() {
+    const total    = allProduce.length;
+    const inStock  = allProduce.filter(p => p.is_available && p.stock_kg > LOW_THRESH).length;
+    const low      = allProduce.filter(p => p.is_available && p.stock_kg > 0 && p.stock_kg <= LOW_THRESH).length;
+    const out      = allProduce.filter(p => !p.is_available || p.stock_kg <= 0).length;
+
+    document.getElementById('summary-strip').innerHTML = `
+      <div class="summary-pill pill-blue">📦 ${total} Total Items</div>
+      <div class="summary-pill pill-green">✅ ${inStock} In Stock</div>
+      <div class="summary-pill pill-yellow">⚠️ ${low} Low Stock</div>
+      <div class="summary-pill pill-red">❌ ${out} Out of Stock</div>
+    `;
+  }
+
+  // ── Filter ────────────────────────────────────────────────────────────────
+  function setFilter(f, btn) {
+    currentFilter = f;
+    document.querySelectorAll('.filter-chip').forEach(c => c.classList.remove('active'));
+    btn.classList.add('active');
+    renderGrid();
+  }
+
+  // ── Render grid ───────────────────────────────────────────────────────────
+  function renderGrid() {
+    const q   = (document.getElementById('search-box').value || '').toLowerCase();
+    let items = [...allProduce];
+
+    if (q) items = items.filter(p => p.name.toLowerCase().includes(q));
+
+    if (currentFilter === 'fruit')     items = items.filter(p => p.category === 'fruit');
+    if (currentFilter === 'vegetable') items = items.filter(p => p.category === 'vegetable');
+    if (currentFilter === 'low')       items = items.filter(p => p.is_available && p.stock_kg > 0 && p.stock_kg <= LOW_THRESH);
+    if (currentFilter === 'out')       items = items.filter(p => !p.is_available || p.stock_kg <= 0);
+
+    const el = document.getElementById('produce-grid');
+    if (!items.length) {
+      el.innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:3rem;color:var(--text-muted);">
+        <div style="font-size:3rem;margin-bottom:0.5rem;">🌿</div>
+        <p>No items match this filter</p>
+      </div>`;
+      return;
+    }
+
+    el.innerHTML = items.map(p => {
+      const lvl      = stockLevel(p);
+      const fillCls  = stockFillClass(p);
+      const pct      = stockPct(p);
+      const cardCls  = lvl === 'out' ? 'out-of-stock' : (lvl === 'low' ? 'low-stock' : '');
+      const pillCls  = lvl === 'out' ? 'pill-out-stock' : (lvl === 'low' ? 'pill-low-stock' : 'pill-in-stock');
+      const pillTxt  = lvl === 'out' ? '❌ Out of Stock'
+                     : lvl === 'low' ? `⚠️ Low — ${p.stock_kg}kg left`
+                     : `✅ In Stock — ${p.stock_kg}kg`;
+
+      const imgHtml = p.image_filename
+        ? `<img class="card-img" src="${BASE}/uploads/${p.image_filename}"
+               alt="${p.name}" onerror="this.outerHTML='<div class=\\'card-img-placeholder\\'>🌿</div>'">`
+        : `<div class="card-img-placeholder">${p.category === 'fruit' ? '🍎' : '🥦'}</div>`;
+
+      return `
+      <div class="produce-admin-card ${cardCls}" id="pcard-${p.id}">
+        ${imgHtml}
+        <div class="card-body">
+          <div class="card-name">${p.name}</div>
+          <div class="card-category ${p.category === 'fruit' ? 'cat-fruit' : 'cat-vegetable'}">
+            ${p.category === 'fruit' ? '🍎 Fruit' : '🥦 Vegetable'}
+          </div>
+
+          <!-- Status Pill -->
+          <div class="status-pill ${pillCls}">${pillTxt}</div>
+
+          <!-- Stock Bar -->
+          <div class="stock-bar-wrap">
+            <div class="stock-label">
+              <span>Stock Level</span>
+              <span>${p.stock_kg} kg / ${STOCK_MAX}kg max</span>
+            </div>
+            <div class="stock-bar">
+              <div class="stock-fill ${fillCls}" style="width:${pct}%"></div>
+            </div>
+          </div>
+
+          <!-- Price Row -->
+          <div class="price-row">
+            <span style="font-size:0.85rem;color:var(--text-muted);">PKR</span>
+            <input class="price-input" id="price-${p.id}" type="number"
+                   value="${p.price_per_kg}" min="1" step="1">
+            <span style="font-size:0.8rem;color:var(--text-muted);">/kg</span>
+            <button class="btn btn-outline btn-sm" onclick="savePrice(${p.id})">💾 Save</button>
+          </div>
+
+          <!-- Restock Row -->
+          <div class="restock-row">
+            <input class="restock-input" id="stock-${p.id}" type="number"
+                   placeholder="Enter kg to restock" min="1" max="1000" step="0.5"
+                   value="${p.stock_kg}">
+            <span style="font-size:0.8rem;color:var(--text-muted);white-space:nowrap;">kg</span>
+          </div>
+
+          <!-- Action Buttons -->
+          <div class="card-actions">
+            <button class="btn btn-success btn-sm" onclick="openRestockModal(${p.id}, '${p.name.replace(/'/g,"\\'")}')">
+              ♻️ Restock
+            </button>
+            ${p.is_available
+              ? `<button class="btn btn-danger btn-sm" onclick="toggleAvailability(${p.id}, 0)">🚫 Mark Unavailable</button>`
+              : `<button class="btn btn-success btn-sm" onclick="toggleAvailability(${p.id}, 1)">✅ Mark Available</button>`
+            }
+          </div>
+        </div>
+      </div>`;
+    }).join('');
+  }
+
+  // ── Restock modal ─────────────────────────────────────────────────────────
+  function openRestockModal(id, name) {
+    restockTarget = { id, name };
+    const currentStock = allProduce.find(p => p.id === id)?.stock_kg || 50;
+    document.getElementById('restock-item-name').textContent = `Item: ${name} (current: ${currentStock}kg)`;
+    document.getElementById('restock-qty').value = 50;
+    openModal('restock-modal');
+  }
+
+  async function confirmRestock() {
+    if (!restockTarget) return;
+    const kg  = parseFloat(document.getElementById('restock-qty').value);
+    if (!kg || kg <= 0) { toast('Enter a valid stock amount', 'error'); return; }
+
+    const res = await PUT(`/admin/produce/${restockTarget.id}/restock`, { stock_kg: kg });
+    if (res?.success) {
+      closeModal('restock-modal');
+      toast(`✅ ${restockTarget.name} restocked to ${kg}kg!`);
+      await loadProduce();
+    } else {
+      toast('Restock failed', 'error');
+    }
+  }
+
+  // ── Quick restock from card inline input ──────────────────────────────────
+  async function quickRestock(id) {
+    const kg  = parseFloat(document.getElementById(`stock-${id}`).value);
+    const item = allProduce.find(p => p.id === id);
+    if (!kg || kg <= 0) { toast('Enter a valid kg amount', 'error'); return; }
+    const res = await PUT(`/admin/produce/${id}/restock`, { stock_kg: kg });
+    if (res?.success) {
+      toast(`✅ ${item?.name} restocked to ${kg}kg`);
+      await loadProduce();
+    } else toast('Failed to restock', 'error');
+  }
+
+  // ── Toggle availability ───────────────────────────────────────────────────
+  async function toggleAvailability(id, val) {
+    const item = allProduce.find(p => p.id === id);
+    const res  = await PUT(`/admin/produce/${id}/toggle`, { is_available: val });
+    if (res?.success) {
+      toast(val ? `✅ ${item?.name} marked available` : `🚫 ${item?.name} marked unavailable`);
+      await loadProduce();
+    } else toast('Failed to update availability', 'error');
+  }
+
+  // ── Save price ────────────────────────────────────────────────────────────
+  async function savePrice(id) {
+    const price = parseFloat(document.getElementById(`price-${id}`).value);
+    const item  = allProduce.find(p => p.id === id);
+    if (!price || price <= 0) { toast('Enter a valid price', 'error'); return; }
+    const res = await PUT(`/admin/produce/${id}/price`, { price_per_kg: price });
+    if (res?.success) {
+      toast(`💰 ${item?.name} price updated to PKR ${price}/kg`);
+      await loadProduce();
+    } else toast(res?.error || 'Failed to update price', 'error');
+  }
+
+  // ── Restock ALL ───────────────────────────────────────────────────────────
+  async function restockAll() {
+    if (!confirm('Restock ALL produce items to 50kg each?')) return;
+    showLoading(true);
+    let success = 0;
+    for (const p of allProduce) {
+      const res = await PUT(`/admin/produce/${p.id}/restock`, { stock_kg: 50 });
+      if (res?.success) success++;
+    }
+    showLoading(false);
+    toast(`✅ Restocked ${success}/${allProduce.length} items to 50kg`);
+    await loadProduce();
+  }
+
+  loadProduce();
+</script>
+</body>
+</html>

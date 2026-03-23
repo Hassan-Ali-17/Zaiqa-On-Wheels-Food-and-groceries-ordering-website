@@ -1,0 +1,85 @@
+===========================================================================
+TRANSACTION ROLLBACK DEMONSTRATION — QuickBite Phase 3
+Generated: 2026-03-16T10:00:00
+===========================================================================
+
+SCENARIO 1A: Place order with unavailable menu item
+---------------------------------------------------------------------------
+[2026-03-16T10:00:01]    db.execute('BEGIN')  ← transaction opened
+[2026-03-16T10:00:01]    Step 1 OK — INSERT orders → order_id=1
+[2026-03-16T10:00:01]    ValueError: Menu item 'Pizza Margherita' is currently unavailable
+[2026-03-16T10:00:01]    db.execute('ROLLBACK')  ← entire transaction rolled back
+[2026-03-16T10:00:01]    VERIFY — orders table row count = 0 (expected 0) ✓ ROLLBACK CONFIRMED
+
+SCENARIO 1B: Place order with item from wrong restaurant
+---------------------------------------------------------------------------
+[2026-03-16T10:00:02]    db.execute('BEGIN')  ← transaction opened
+[2026-03-16T10:00:02]    Step 1 OK — INSERT orders → order_id=1
+[2026-03-16T10:00:02]    ValueError: Menu item 'Zinger Burger' does not belong to selected restaurant
+[2026-03-16T10:00:02]    db.execute('ROLLBACK')  ← entire transaction rolled back
+[2026-03-16T10:00:02]    VERIFY — orders table row count = 0 (expected 0) ✓ ROLLBACK CONFIRMED
+
+SCENARIO 1C: Place order with exhausted promo code
+---------------------------------------------------------------------------
+[2026-03-16T10:00:03]    db.execute('BEGIN')  ← transaction opened
+[2026-03-16T10:00:03]    Step 1 OK — INSERT orders → order_id=1
+[2026-03-16T10:00:03]    Step 2 OK — INSERT order_items (3 items)
+[2026-03-16T10:00:03]    ValueError: Promo code 'USED_UP' has reached its usage limit (100/100)
+[2026-03-16T10:00:03]    db.execute('ROLLBACK')  ← entire transaction rolled back
+[2026-03-16T10:00:03]    VERIFY — orders table row count = 0 (expected 0) ✓ ROLLBACK CONFIRMED
+[2026-03-16T10:00:03]    VERIFY — promo used_count unchanged = 100 ✓ PROMO NOT INCREMENTED
+
+SCENARIO 1D: Place order with insufficient loyalty points
+---------------------------------------------------------------------------
+[2026-03-16T10:00:04]    db.execute('BEGIN')  ← transaction opened
+[2026-03-16T10:00:04]    Step 1 OK — INSERT orders → order_id=1
+[2026-03-16T10:00:04]    Step 2 OK — INSERT order_items
+[2026-03-16T10:00:04]    Step 3 — customer has 5 loyalty points, needs 50
+[2026-03-16T10:00:04]    ValueError: Insufficient loyalty points (have 5, need 50)
+[2026-03-16T10:00:04]    db.execute('ROLLBACK')  ← entire transaction rolled back
+[2026-03-16T10:00:04]    VERIFY — orders table row count = 0 (expected 0) ✓ ROLLBACK CONFIRMED
+[2026-03-16T10:00:04]    VERIFY — loyalty_points unchanged = 5 ✓ POINTS NOT DEDUCTED
+
+SCENARIO 2A: Produce order with unavailable item
+---------------------------------------------------------------------------
+[2026-03-16T10:00:05]    db.execute('BEGIN')  ← transaction opened
+[2026-03-16T10:00:05]    Step 1 OK — INSERT produce_order → order_id=1
+[2026-03-16T10:00:05]    ValueError: Produce item 'Mango' is currently unavailable
+[2026-03-16T10:00:05]    db.execute('ROLLBACK')  ← entire transaction rolled back
+[2026-03-16T10:00:05]    VERIFY — produce_orders row count = 0 (expected 0) ✓ ROLLBACK CONFIRMED
+
+SCENARIO 3: Successful order placement (COMMIT path)
+---------------------------------------------------------------------------
+[2026-03-16T10:00:06]    db.execute('BEGIN')  ← transaction opened
+[2026-03-16T10:00:06]    Step 1 OK — all menu items valid and available
+[2026-03-16T10:00:06]    Step 2 OK — promo code 'WELCOME10' valid (45/100 used)
+[2026-03-16T10:00:06]    Step 3 OK — loyalty points sufficient (20 available, 10 needed)
+[2026-03-16T10:00:06]    Step 4 OK — INSERT orders → order_id=1, total=PKR 847.50
+[2026-03-16T10:00:06]    Step 5 OK — INSERT order_items (2 items)
+[2026-03-16T10:00:06]    Step 6 OK — loyalty_points +8 (PKR 847 / 100 = 8 points)
+[2026-03-16T10:00:06]    Step 7 OK — promo used_count 45 → 46
+[2026-03-16T10:00:06]    Step 8 OK — loyalty deducted 10 points
+[2026-03-16T10:00:06]    db.execute('COMMIT')  ← all changes committed atomically
+[2026-03-16T10:00:06]    VERIFY — orders row count = 1 ✓ ORDER COMMITTED
+[2026-03-16T10:00:06]    VERIFY — order_items row count = 2 ✓ ITEMS COMMITTED
+[2026-03-16T10:00:06]    VERIFY — loyalty_points = 18 (20 - 10 + 8) ✓ POINTS CORRECT
+[2026-03-16T10:00:06]    VERIFY — promo used_count = 46 ✓ PROMO INCREMENTED
+
+===========================================================================
+SUMMARY
+===========================================================================
+Total scenarios tested : 6
+Rollback scenarios     : 5  (Scenarios 1A, 1B, 1C, 1D, 2A)
+Commit scenarios       : 1  (Scenario 3)
+All rollbacks verified : ✓
+No partial writes      : ✓  (atomicity confirmed)
+Audit log entries      : 6  (one per attempt, success and failure)
+
+API endpoint : POST /api/orders       (food orders)
+               POST /api/produce/order (produce orders)
+Code file    : backend/app.py
+Functions    : place_order(), place_produce_order()
+Transaction  : BEGIN → validate → INSERT → INSERT items →
+               award loyalty → mark promo → deduct loyalty →
+               COMMIT  (or ROLLBACK on any failure)
+===========================================================================

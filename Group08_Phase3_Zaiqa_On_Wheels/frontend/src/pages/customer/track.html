@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>QuickBite — Track Order</title>
+  <link rel="stylesheet" href="../../css/main.css">
+  <style>
+    .track-layout { max-width: 700px; margin: 2rem auto; padding: 0 1.5rem; }
+
+    /* Progress Steps */
+    .progress-steps { display:flex; align-items:flex-start; justify-content:space-between; position:relative; margin-bottom:2.5rem; }
+    .progress-steps::before {
+      content:''; position:absolute; top:22px; left:0; right:0; height:3px;
+      background:var(--border); z-index:0;
+    }
+    .progress-fill {
+      content:''; position:absolute; top:22px; left:0; height:3px;
+      background: linear-gradient(90deg, var(--primary), #FF7040); z-index:1;
+      transition: width 0.6s ease;
+    }
+    .step { display:flex; flex-direction:column; align-items:center; gap:0.5rem; z-index:2; flex:1; }
+    .step-circle {
+      width:44px; height:44px; border-radius:50%; border:3px solid var(--border);
+      background:var(--bg2); display:flex; align-items:center; justify-content:center;
+      font-size:1.1rem; transition:all 0.4s; flex-shrink:0;
+    }
+    .step.done .step-circle { border-color:var(--primary); background:var(--primary); }
+    .step.active .step-circle { border-color:var(--primary); background:var(--bg2); box-shadow:0 0 0 4px rgba(255,77,0,0.2); animation:pulse-ring 1.5s infinite; }
+    .step-label { font-size:0.72rem; color:var(--text-muted); text-align:center; font-weight:600; max-width:70px; }
+    .step.done .step-label, .step.active .step-label { color:var(--primary); }
+
+    @keyframes pulse-ring {
+      0% { box-shadow: 0 0 0 0 rgba(255,77,0,0.4); }
+      70% { box-shadow: 0 0 0 10px rgba(255,77,0,0); }
+      100% { box-shadow: 0 0 0 0 rgba(255,77,0,0); }
+    }
+
+    /* Map Canvas */
+    .map-box {
+      background: var(--card); border: 1px solid var(--border);
+      border-radius: 20px; overflow: hidden; margin-bottom: 1.5rem;
+      position: relative;
+    }
+    .map-canvas { width:100%; height:320px; display:block; }
+    .map-overlay {
+      position:absolute; top:12px; right:12px;
+      background:var(--bg2); border:1px solid var(--border);
+      border-radius:12px; padding:0.6rem 1rem; font-size:0.85rem;
+    }
+    .eta-label { color:var(--text-muted); font-size:0.75rem; }
+    .eta-value { font-family:'Syne',sans-serif; font-weight:800; font-size:1.2rem; color:var(--primary); }
+
+    /* Info Cards */
+    .info-grid { display:grid; grid-template-columns:1fr 1fr; gap:1rem; margin-bottom:1.5rem; }
+    .info-card { background:var(--card); border:1px solid var(--border); border-radius:16px; padding:1.1rem; }
+    .info-card-label { font-size:0.75rem; color:var(--text-muted); margin-bottom:0.4rem; }
+    .info-card-val { font-family:'Syne',sans-serif; font-weight:700; font-size:1rem; }
+
+    /* Rider Card */
+    .rider-card {
+      background:var(--card); border:1px solid var(--border); border-radius:16px;
+      padding:1.25rem; display:flex; align-items:center; gap:1rem; margin-bottom:1.5rem;
+    }
+    .rider-avatar { width:52px; height:52px; border-radius:50%; background:linear-gradient(135deg,#FF4D00,#FF7040); display:flex; align-items:center; justify-content:center; font-size:1.5rem; flex-shrink:0; }
+    .rider-name { font-family:'Syne',sans-serif; font-weight:700; font-size:1rem; }
+    .rider-sub { color:var(--text-muted); font-size:0.8rem; margin-top:0.2rem; }
+    .rider-status-dot { width:10px; height:10px; border-radius:50%; background:#22C55E; animation:blink 1s infinite; }
+    @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.3} }
+
+    .live-badge { display:inline-flex; align-items:center; gap:0.4rem; background:rgba(239,68,68,0.15); color:#EF4444; border:1px solid rgba(239,68,68,0.3); border-radius:20px; padding:0.25rem 0.75rem; font-size:0.72rem; font-weight:700; letter-spacing:0.5px; }
+  </style>
+</head>
+<body>
+<nav class="navbar">
+  <a href="home.html" class="nav-logo">Quick<span>Bite</span></a>
+  <div class="nav-links">
+    <a href="home.html">🏠 Home</a>
+    <a href="orders.html">📦 My Orders</a>
+  </div>
+  <div style="display:flex;align-items:center;gap:0.75rem;">
+    <button class="theme-toggle" id="theme-toggle-btn" onclick="toggleTheme()">☀️ Light</button>
+    <div class="nav-user" id="nav-user"></div>
+  </div>
+</nav>
+
+<div class="track-layout">
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1.5rem;">
+    <div>
+      <div style="font-family:'Syne',sans-serif;font-weight:800;font-size:1.4rem;">Live Tracking</div>
+      <div style="color:var(--text-muted);font-size:0.85rem;" id="order-label">Order #—</div>
+    </div>
+    <span class="live-badge">🔴 LIVE</span>
+  </div>
+
+  <!-- Progress Bar -->
+  <div style="position:relative;margin-bottom:2.5rem;">
+    <div class="progress-steps" id="progress-steps">
+      <div class="progress-fill" id="progress-fill" style="width:0%"></div>
+      <div class="step" id="step-0"><div class="step-circle">📋</div><div class="step-label">Order Placed</div></div>
+      <div class="step" id="step-1"><div class="step-circle">✅</div><div class="step-label">Confirmed</div></div>
+      <div class="step" id="step-2"><div class="step-circle">👨‍🍳</div><div class="step-label">Preparing</div></div>
+      <div class="step" id="step-3"><div class="step-circle">🛵</div><div class="step-label">On the Way</div></div>
+      <div class="step" id="step-4"><div class="step-circle">🎉</div><div class="step-label">Delivered</div></div>
+    </div>
+  </div>
+
+  <!-- Live Map -->
+  <div class="map-box">
+    <canvas class="map-canvas" id="map-canvas"></canvas>
+    <div class="map-overlay">
+      <div class="eta-label">ETA</div>
+      <div class="eta-value" id="eta-display">—</div>
+    </div>
+  </div>
+
+  <!-- Rider Info -->
+  <div class="rider-card" id="rider-card" style="display:none;">
+    <div class="rider-avatar">🛵</div>
+    <div style="flex:1;">
+      <div class="rider-name" id="rider-name">Your Rider</div>
+      <div class="rider-sub" id="rider-vehicle">On the way to you</div>
+    </div>
+    <div class="rider-status-dot"></div>
+  </div>
+
+  <!-- Info Cards -->
+  <div class="info-grid">
+    <div class="info-card">
+      <div class="info-card-label">📍 Delivery To</div>
+      <div class="info-card-val" id="delivery-addr" style="font-size:0.85rem;font-weight:600;">—</div>
+    </div>
+    <div class="info-card">
+      <div class="info-card-label">🏪 Restaurant</div>
+      <div class="info-card-val" id="rest-name">—</div>
+    </div>
+    <div class="info-card">
+      <div class="info-card-label">💰 Order Total</div>
+      <div class="info-card-val" id="order-total">—</div>
+    </div>
+    <div class="info-card">
+      <div class="info-card-label">📦 Status</div>
+      <div class="info-card-val" id="order-status">—</div>
+    </div>
+  </div>
+
+  <a href="orders.html" class="btn btn-outline btn-full" style="text-align:center;">← Back to Orders</a>
+</div>
+
+<div id="toast"></div>
+<script src="../../js/shared.js"></script>
+<script>
+  const user = requireAnyAuth('customer','admin','rider');
+  renderUserBadge('nav-user');
+
+  const params = new URLSearchParams(window.location.search);
+  const orderId = params.get('id');
+  if (!orderId) window.location.href = 'orders.html';
+
+  document.getElementById('order-label').textContent = `Order #${orderId}`;
+
+  // Status config
+  const STATUS_MAP = {
+    'Pending':            { step: 0, fill: '0%',   label: 'Waiting for restaurant' },
+    'Confirmed':          { step: 1, fill: '25%',  label: 'Restaurant confirmed!' },
+    'Preparing':          { step: 2, fill: '50%',  label: 'Chef is cooking your food' },
+    'Out for Delivery':   { step: 3, fill: '75%',  label: 'Rider is on the way!' },
+    'Delivered':          { step: 4, fill: '100%', label: 'Delivered! Enjoy your meal 🎉' },
+  };
+
+  let riderPos = { x: 0.1, y: 0.5 };
+  let targetPos = { x: 0.9, y: 0.5 };
+  let restaurantPos = { x: 0.1, y: 0.5 };
+  let currentStatus = 'Pending';
+  let animFrame;
+
+  // ── Canvas Map ──────────────────────────────────────────────────────────
+  const canvas = document.getElementById('map-canvas');
+  const ctx = canvas.getContext('2d');
+
+  function resizeCanvas() {
+    canvas.width = canvas.offsetWidth * window.devicePixelRatio;
+    canvas.height = canvas.offsetHeight * window.devicePixelRatio;
+    ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
+  }
+  resizeCanvas();
+  window.addEventListener('resize', resizeCanvas);
+
+  function drawMap(progress) {
+    const W = canvas.offsetWidth, H = canvas.offsetHeight;
+    ctx.clearRect(0, 0, W, H);
+
+    // Background
+    const isDark = !document.body.classList.contains('light-mode');
+    ctx.fillStyle = isDark ? '#1A1A1A' : '#F0F0F0';
+    ctx.fillRect(0, 0, W, H);
+
+    // Road grid
+    ctx.strokeStyle = isDark ? '#2A2A2A' : '#DDDDDD';
+    ctx.lineWidth = 1;
+    for(let x = 0; x < W; x += 40) { ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,H); ctx.stroke(); }
+    for(let y = 0; y < H; y += 40) { ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(W,y); ctx.stroke(); }
+
+    // City blocks
+    ctx.fillStyle = isDark ? '#222' : '#E8E8E8';
+    [[80,60,120,80],[240,40,100,60],[420,80,120,80],[80,200,100,60],[300,180,140,80],[80,100,30,80]].forEach(([x,y,w,h]) => {
+      ctx.beginPath(); ctx.roundRect(x,y,w,h,6); ctx.fill();
+    });
+
+    // Route line
+    const rx = restaurantPos.x * W, ry = restaurantPos.y * H;
+    const cx2 = targetPos.x * W, cy2 = targetPos.y * H;
+    ctx.beginPath(); ctx.moveTo(rx, ry); ctx.lineTo(cx2, cy2);
+    ctx.strokeStyle = isDark ? '#333' : '#CCC'; ctx.lineWidth = 3; ctx.setLineDash([8,6]); ctx.stroke(); ctx.setLineDash([]);
+
+    // Traveled path
+    const ridX = riderPos.x * W, ridY = riderPos.y * H;
+    ctx.beginPath(); ctx.moveTo(rx, ry); ctx.lineTo(ridX, ridY);
+    ctx.strokeStyle = '#FF4D00'; ctx.lineWidth = 3; ctx.stroke();
+
+    // Restaurant marker
+    ctx.fillStyle = '#22C55E';
+    ctx.beginPath(); ctx.arc(rx, ry, 12, 0, Math.PI*2); ctx.fill();
+    ctx.fillStyle = 'white'; ctx.font = 'bold 13px Arial'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText('🏪', rx, ry);
+
+    // Customer marker
+    ctx.fillStyle = '#3B82F6';
+    ctx.beginPath(); ctx.arc(cx2, cy2, 12, 0, Math.PI*2); ctx.fill();
+    ctx.fillText('🏠', cx2, cy2);
+
+    // Rider (animated)
+    if (currentStatus === 'Out for Delivery' || currentStatus === 'Preparing') {
+      // Glow
+      const grd = ctx.createRadialGradient(ridX, ridY, 0, ridX, ridY, 24);
+      grd.addColorStop(0, 'rgba(255,77,0,0.3)'); grd.addColorStop(1, 'rgba(255,77,0,0)');
+      ctx.fillStyle = grd; ctx.beginPath(); ctx.arc(ridX, ridY, 24, 0, Math.PI*2); ctx.fill();
+      // Dot
+      ctx.fillStyle = '#FF4D00';
+      ctx.beginPath(); ctx.arc(ridX, ridY, 14, 0, Math.PI*2); ctx.fill();
+      ctx.fillStyle = 'white'; ctx.fillText('🛵', ridX, ridY);
+    }
+
+    // Labels
+    ctx.font = '600 11px DM Sans, sans-serif';
+    ctx.fillStyle = isDark ? '#888' : '#666'; ctx.textAlign = 'center';
+    ctx.fillText('Restaurant', rx, ry + 22);
+    ctx.fillText('Your Location', cx2, cy2 + 22);
+  }
+
+  function animateRider(progress) {
+    // Smoothly move rider from restaurant to customer
+    const t = Math.min(progress / 100, 1);
+    riderPos.x = restaurantPos.x + (targetPos.x - restaurantPos.x) * t;
+    riderPos.y = restaurantPos.y + (targetPos.y - restaurantPos.y) * t + Math.sin(t * Math.PI) * 0.1;
+    drawMap(progress);
+  }
+
+  function updateSteps(status) {
+    const cfg = STATUS_MAP[status] || STATUS_MAP['Pending'];
+    // Reset all
+    for(let i=0;i<5;i++) {
+      const s = document.getElementById(`step-${i}`);
+      s.classList.remove('done','active');
+    }
+    // Mark done up to current step
+    for(let i=0;i<cfg.step;i++) document.getElementById(`step-${i}`).classList.add('done');
+    document.getElementById(`step-${cfg.step}`).classList.add('active');
+    document.getElementById('progress-fill').style.width = cfg.fill;
+    document.getElementById('order-status').textContent = status;
+    document.getElementById('order-status').style.color = cfg.step === 4 ? '#22C55E' : cfg.step === 3 ? 'var(--primary)' : 'var(--text)';
+  }
+
+  async function fetchTracking() {
+    try {
+      // Try restaurant order first, then produce order
+      const orderType = params.get('type') || 'restaurant';
+      let order;
+      if (orderType === 'produce') {
+        order = await GET(`/produce/order/${orderId}`);
+        if (order) {
+          order.restaurant_name = '🥬 Fresh Produce Market';
+          order.order_type = 'produce';
+        }
+      } else {
+        order = await GET(`/orders/detail/${orderId}`);
+      }
+
+      if (order) {
+        currentStatus = order.status;
+        document.getElementById('rest-name').textContent = order.restaurant_name || '—';
+        document.getElementById('delivery-addr').textContent = order.delivery_address || '—';
+        document.getElementById('order-total').textContent = `PKR ${parseFloat(order.total_amount || 0).toFixed(0)}`;
+        document.getElementById('order-status').textContent = currentStatus;
+        updateSteps(currentStatus);
+
+        // Show order items for produce orders
+        const itemsInfo = document.getElementById('order-items-info');
+        if (itemsInfo && order.order_type === 'produce' && order.items?.length) {
+          itemsInfo.textContent = '📦 Items: ' + order.items.map(i => `${i.name} ${i.quantity_kg}kg`).join(', ');
+          itemsInfo.style.display = 'block';
+        }
+
+        // Show rider card when out for delivery or delivered
+        const riderCard = document.getElementById('rider-card');
+        if (currentStatus === 'Out for Delivery' || currentStatus === 'Delivered') {
+          riderCard.style.display = 'flex';
+          document.getElementById('rider-name').textContent = order.rider_name || 'Your Rider';
+          document.getElementById('rider-vehicle').textContent = order.rider_vehicle || 'On the way to you 🛵';
+        } else {
+          riderCard.style.display = 'none';
+        }
+
+        // Update ETA based on status
+        const etaMap = { 'Pending':'Waiting for confirmation','Confirmed':'~30 min','Preparing':'~20 min','Out for Delivery':'~10 min','Delivered':'Delivered! ✅' };
+        document.getElementById('eta-display').textContent = etaMap[currentStatus] || '—';
+      }
+
+      // Simulate rider progress based on status
+      const progressMap = { 'Pending': 0, 'Confirmed': 15, 'Preparing': 40, 'Out for Delivery': 75, 'Delivered': 100 };
+      const targetProgress = progressMap[currentStatus] || 0;
+
+      // Smoothly animate to target progress
+      cancelAnimationFrame(animFrame);
+      const currentProgress = ((riderPos.x - restaurantPos.x) / (targetPos.x - restaurantPos.x)) * 100 || 0;
+      let prog = currentProgress;
+      function animStep() {
+        if (prog < targetProgress) {
+          prog = Math.min(prog + 0.8, targetProgress);
+          animateRider(prog);
+          animFrame = requestAnimationFrame(animStep);
+        } else {
+          animateRider(prog);
+        }
+      }
+      animStep();
+
+    } catch(e) {
+      console.error('Tracking error:', e);
+      drawMap(0);
+    }
+  }
+
+  // Poll every 8 seconds
+  fetchTracking();
+  const interval = setInterval(fetchTracking, 8000);
+
+  // Cleanup on leave
+  window.addEventListener('beforeunload', () => clearInterval(interval));
+</script>
+</body>
+</html>

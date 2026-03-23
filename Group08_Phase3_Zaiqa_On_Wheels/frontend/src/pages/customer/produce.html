@@ -1,0 +1,662 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>QuickBite — Fresh Produce</title>
+  <link rel="stylesheet" href="../../css/main.css">
+  <style>
+    .produce-hero {
+      background: linear-gradient(135deg, rgba(34,197,94,0.15) 0%, rgba(16,185,129,0.08) 50%, transparent 100%);
+      padding: 2.5rem 2rem 2rem;
+      border-bottom: 1px solid var(--border);
+      text-align: center;
+    }
+    .produce-hero h1 { font-family:'Syne',sans-serif; font-size:2.2rem; font-weight:800; }
+    .produce-hero h1 span { color:#22C55E; }
+    .produce-hero p { color:var(--text-muted); margin-top:0.4rem; font-size:1rem; }
+
+    .filter-tabs {
+      display:flex; justify-content:center; gap:0.75rem;
+      padding:1.25rem 2rem; background:var(--bg2); border-bottom:1px solid var(--border);
+      position:sticky; top:64px; z-index:50;
+    }
+    .filter-pill {
+      padding:0.55rem 1.5rem; border-radius:50px; border:1.5px solid var(--border);
+      background:var(--card); color:var(--text-muted); cursor:pointer; font-size:0.9rem;
+      font-weight:600; transition:all 0.2s; display:flex; align-items:center; gap:0.5rem;
+    }
+    .filter-pill:hover { border-color:#22C55E; color:#22C55E; }
+    .filter-pill.active { border-color:#22C55E; background:rgba(34,197,94,0.12); color:#22C55E; }
+
+    .produce-layout { display:flex; min-height:calc(100vh - 200px); }
+    .produce-main { flex:1; padding:2rem; min-width:0; }
+
+    .section-heading {
+      font-family:'Syne',sans-serif; font-size:1.2rem; font-weight:800;
+      margin-bottom:1.25rem; display:flex; align-items:center; gap:0.6rem;
+    }
+
+    .produce-grid {
+      display:grid; grid-template-columns:repeat(auto-fill, minmax(200px,1fr)); gap:1.25rem;
+      margin-bottom:2.5rem;
+    }
+
+    .produce-card {
+      background:var(--card); border:1.5px solid var(--border); border-radius:18px;
+      overflow:hidden; transition:all 0.2s; display:flex; flex-direction:column;
+    }
+    .produce-card:hover { border-color:#22C55E; transform:translateY(-3px); box-shadow:0 8px 28px rgba(0,0,0,0.3); }
+
+    .produce-img-wrap {
+      height:160px; background:var(--bg3); display:flex; align-items:center;
+      justify-content:center; overflow:hidden; position:relative;
+    }
+    .produce-img-wrap img { width:100%; height:100%; object-fit:cover; transition:transform 0.3s; }
+    .produce-card:hover .produce-img-wrap img { transform:scale(1.06); }
+    .produce-category-tag {
+      position:absolute; top:8px; right:8px; font-size:0.65rem; font-weight:700;
+      text-transform:uppercase; letter-spacing:0.5px; padding:3px 8px; border-radius:20px;
+    }
+    .tag-fruit { background:rgba(249,115,22,0.85); color:white; }
+    .tag-vegetable { background:rgba(34,197,94,0.85); color:white; }
+
+    .produce-info { padding:1rem; flex:1; display:flex; flex-direction:column; gap:0.4rem; }
+    .produce-name { font-family:'Syne',sans-serif; font-weight:700; font-size:0.95rem; }
+    .produce-desc { font-size:0.75rem; color:var(--text-muted); line-height:1.4; }
+    .produce-price { font-family:'Syne',sans-serif; font-weight:800; font-size:1rem; color:#22C55E; }
+    .produce-price span { font-size:0.75rem; font-weight:400; color:var(--text-muted); }
+
+    /* Weight picker inside card */
+    .weight-picker {
+      display:flex; align-items:center; gap:0.5rem; margin-top:0.5rem;
+      background:var(--bg3); border-radius:10px; padding:0.4rem 0.6rem;
+    }
+    .weight-label { font-size:0.75rem; color:var(--text-muted); flex-shrink:0; }
+    .weight-input {
+      width:65px; background:var(--bg); border:1px solid var(--border); border-radius:7px;
+      color:var(--text); font-family:'DM Sans',sans-serif; font-size:0.85rem;
+      padding:0.3rem 0.4rem; text-align:center; outline:none;
+    }
+    .weight-input:focus { border-color:#22C55E; }
+    .weight-unit { font-size:0.78rem; color:var(--text-muted); }
+
+    .add-produce-btn {
+      margin-top:0.75rem; width:100%; padding:0.6rem; border:none; border-radius:10px;
+      background:#22C55E; color:white; font-family:'DM Sans',sans-serif; font-weight:700;
+      font-size:0.85rem; cursor:pointer; transition:all 0.2s; display:flex;
+      align-items:center; justify-content:center; gap:0.4rem;
+    }
+    .add-produce-btn:hover { background:#16A34A; transform:translateY(-1px); }
+    .add-produce-btn.added { background:var(--primary); }
+
+    /* Cart sidebar */
+    .produce-cart {
+      width:320px; flex-shrink:0; background:var(--bg2); border-left:1px solid var(--border);
+      position:sticky; top:200px; height:calc(100vh - 200px); overflow-y:auto; padding:1.5rem;
+    }
+    .cart-heading { font-family:'Syne',sans-serif; font-weight:800; font-size:1rem; margin-bottom:1rem; display:flex; align-items:center; gap:0.5rem; }
+    .produce-cart-item {
+      display:flex; align-items:center; gap:0.75rem; padding:0.7rem 0;
+      border-bottom:1px solid var(--border);
+    }
+    .produce-cart-thumb { width:42px; height:42px; border-radius:8px; object-fit:cover; flex-shrink:0; }
+    .produce-cart-info { flex:1; min-width:0; }
+    .produce-cart-name { font-size:0.85rem; font-weight:600; }
+    .produce-cart-sub { font-size:0.75rem; color:var(--text-muted); }
+    .produce-cart-price { font-size:0.85rem; font-weight:700; color:#22C55E; flex-shrink:0; }
+    .remove-btn { background:none; border:none; color:var(--danger); cursor:pointer; font-size:1rem; padding:0.2rem; }
+
+    .cart-summary { margin-top:1rem; }
+    .cart-row { display:flex; justify-content:space-between; padding:0.4rem 0; font-size:0.85rem; }
+    .cart-row.total { border-top:1px solid var(--border); padding-top:0.75rem; margin-top:0.4rem; font-weight:700; font-size:1rem; }
+    .cart-row.total .val { color:#22C55E; font-family:'Syne',sans-serif; font-size:1.05rem; }
+
+    .checkout-form { margin-top:1rem; }
+    .empty-cart-msg { text-align:center; padding:2rem 0; color:var(--text-muted); font-size:0.9rem; }
+    .empty-cart-icon { font-size:3rem; margin-bottom:0.75rem; }
+
+    /* Search bar */
+    .search-bar-wrap { margin-bottom:1.5rem; position:relative; }
+    .search-bar-wrap input { padding-left:2.75rem; }
+    .search-icon { position:absolute; left:1rem; top:50%; transform:translateY(-50%); color:var(--text-muted); font-size:1rem; }
+
+    @media(max-width:768px) {
+      .produce-cart { display:none; }
+      .produce-grid { grid-template-columns:repeat(auto-fill,minmax(160px,1fr)); }
+    }
+  </style>
+</head>
+<body>
+
+<nav class="navbar">
+  <a href="home.html" class="nav-logo">Quick<span>Bite</span></a>
+  <div class="nav-links">
+    <a href="home.html">🏠 Home</a>
+    <a href="produce.html" class="active" style="color:#22C55E;">🥦 Fresh Produce</a>
+    <a href="orders.html">📦 My Orders</a>
+    <a href="chat.html">💬 Support</a>
+    <a href="loyalty.html">⭐ Loyalty</a>
+    <a href="profile.html">👤 Profile</a>
+  </div>
+  <div class="nav-user" id="nav-user"></div>
+  <button class="theme-toggle" id="theme-toggle-btn" onclick="toggleTheme()">☀️ Light</button>
+</nav>
+
+<div class="produce-hero">
+  <div style="font-size:2.5rem;margin-bottom:0.5rem;">🥦🍎🥕</div>
+  <h1>Fresh <span>Fruits & Veggies</span></h1>
+  <p>Farm-fresh produce delivered to your door • Pay per kilogram • Minimum 0.5 kg</p>
+</div>
+
+<div class="filter-tabs">
+  <div class="filter-pill active" onclick="setFilter('all',this)">🛒 All Produce</div>
+  <div class="filter-pill" onclick="setFilter('fruit',this)">🍎 Fruits Only</div>
+  <div class="filter-pill" onclick="setFilter('vegetable',this)">🥦 Vegetables Only</div>
+</div>
+
+<div class="produce-layout">
+  <div class="produce-main">
+    <!-- Search -->
+    <div class="search-bar-wrap">
+      <span class="search-icon">🔍</span>
+      <input type="text" id="search-input" class="form-control" placeholder="Search fruits & vegetables..." oninput="applySearch()">
+    </div>
+
+    <!-- Fruits section -->
+    <div id="fruit-section">
+      <div class="section-heading">🍎 Fruits</div>
+      <div class="produce-grid" id="fruit-grid"><div class="loader"><div class="spinner"></div></div></div>
+    </div>
+
+    <!-- Vegetables section -->
+    <div id="veg-section">
+      <div class="section-heading">🥦 Vegetables</div>
+      <div class="produce-grid" id="veg-grid"><div class="loader"><div class="spinner"></div></div></div>
+    </div>
+  </div>
+
+  <!-- Cart Sidebar -->
+  <div class="produce-cart">
+    <div class="cart-heading">🛒 Your Cart <span id="cart-count" style="background:#22C55E;color:white;border-radius:50%;width:20px;height:20px;display:inline-flex;align-items:center;justify-content:center;font-size:0.7rem;">0</span></div>
+    <div id="cart-body">
+      <div class="empty-cart-msg">
+        <div class="empty-cart-icon">🥬</div>
+        <p>Your cart is empty</p>
+        <p style="font-size:0.8rem;margin-top:0.25rem;">Add fresh produce from the left!</p>
+      </div>
+    </div>
+    <div id="cart-checkout" style="display:none;">
+      <div class="cart-summary" id="cart-summary"></div>
+      <div class="checkout-form">
+        <div class="form-group">
+          <label class="form-label">Delivery Address</label>
+          <textarea id="delivery-addr" class="form-control" rows="2" placeholder="Enter your address..."></textarea>
+        </div>
+        <div class="form-group">
+          <label class="form-label">💳 Payment Method</label>
+          <select id="payment-method" class="form-control" onchange="togglePaymentFields()">
+            <option value="Cash on Delivery">💵 Cash on Delivery</option>
+            <option value="JazzCash">📱 JazzCash</option>
+            <option value="EasyPaisa">📱 EasyPaisa</option>
+            <option value="Card">💳 Credit/Debit Card</option>
+          </select>
+        </div>
+
+        <!-- Mobile Payment Fields (JazzCash / EasyPaisa) -->
+        <div id="mobile-payment-fields" style="display:none;">
+          <div class="form-group">
+            <label class="form-label" id="mobile-label">📱 JazzCash Number</label>
+            <input type="tel" id="mobile-payment-number" class="form-control"
+              placeholder="03XX-XXXXXXX" maxlength="11"
+              oninput="this.value=this.value.replace(/[^0-9]/g,'')">
+            <div id="mobile-error" style="color:#ef4444;font-size:0.8rem;margin-top:0.3rem;display:none;">
+              ❌ Number must match your registered phone number
+            </div>
+          </div>
+        </div>
+
+        <!-- Card Payment Fields -->
+        <div id="card-payment-fields" style="display:none;">
+          <div class="form-group">
+            <label class="form-label">💳 Card Number</label>
+            <input type="text" id="card-number" class="form-control"
+              placeholder="1234 5678 9012 3456" maxlength="19"
+              oninput="formatCardNumber(this)">
+            <div id="card-number-error" style="color:#ef4444;font-size:0.8rem;margin-top:0.3rem;display:none;">❌ Enter a valid 16-digit card number</div>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem;">
+            <div class="form-group">
+              <label class="form-label">📅 Expiry (MM/YY)</label>
+              <input type="text" id="card-expiry" class="form-control"
+                placeholder="MM/YY" maxlength="5" oninput="formatExpiry(this)">
+              <div id="card-expiry-error" style="color:#ef4444;font-size:0.8rem;margin-top:0.3rem;display:none;">❌ Invalid expiry</div>
+            </div>
+            <div class="form-group">
+              <label class="form-label">🔒 CVV</label>
+              <input type="password" id="card-cvv" class="form-control"
+                placeholder="123" maxlength="4"
+                oninput="this.value=this.value.replace(/[^0-9]/g,'')">
+              <div id="card-cvv-error" style="color:#ef4444;font-size:0.8rem;margin-top:0.3rem;display:none;">❌ CVV must be 3–4 digits</div>
+            </div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">👤 Cardholder Name</label>
+            <input type="text" id="card-name" class="form-control" placeholder="Name as on card">
+            <div id="card-name-error" style="color:#ef4444;font-size:0.8rem;margin-top:0.3rem;display:none;">❌ Enter cardholder name</div>
+          </div>
+        </div>
+
+        <button class="btn btn-full" style="background:#22C55E;color:white;font-weight:700;padding:0.8rem;" onclick="placeProduceOrder()">
+          Place Order →
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Order Success Modal -->
+<div class="modal-overlay" id="success-modal">
+  <div class="modal" style="text-align:center;">
+    <div style="font-size:4rem;margin-bottom:1rem;">🎉</div>
+    <div style="font-family:'Syne',sans-serif;font-size:1.4rem;font-weight:800;margin-bottom:0.5rem;">Order Placed!</div>
+    <p style="color:var(--text-muted);margin-bottom:1.5rem;">Your fresh produce will be delivered soon!</p>
+    <div id="order-summary-modal" style="background:var(--bg3);border-radius:12px;padding:1rem;margin-bottom:1.5rem;text-align:left;"></div>
+    <div style="display:flex;gap:0.75rem;justify-content:center;">
+      <button class="btn btn-outline" onclick="closeModal('success-modal')">Continue Shopping</button>
+      <a href="orders.html" class="btn" style="background:#22C55E;color:white;">View Orders</a>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+<script src="../../js/shared.js"></script>
+<script>
+  const user = getUser();
+  if (!user || !getToken()) { window.location.href = getLoginPath(); }
+  renderUserBadge('nav-user');
+
+  const BASE = 'http://127.0.0.1:5000';
+  let allProduce  = [];
+  let cart        = {};
+  let currentFilter = 'all';
+
+  // ── Load produce from API ─────────────────────────────────────────────────
+  async function loadProduce() {
+    const data = await GET('/produce');
+    if (!data) {
+      toast('Could not load produce — is the backend running?', 'error');
+      document.getElementById('fruit-grid').innerHTML = '<p style="color:var(--danger);padding:1rem;">Failed to load. Make sure python app.py is running.</p>';
+      document.getElementById('veg-grid').innerHTML   = '';
+      return;
+    }
+    allProduce = data;
+    renderAll();
+  }
+
+  // ── Render sections ───────────────────────────────────────────────────────
+  function renderAll() {
+    const q = (document.getElementById('search-input').value || '').toLowerCase();
+    let fruits = allProduce.filter(p => p.category === 'fruit');
+    let vegs   = allProduce.filter(p => p.category === 'vegetable');
+
+    if (q) {
+      fruits = fruits.filter(p => p.name.toLowerCase().includes(q));
+      vegs   = vegs.filter(p =>   p.name.toLowerCase().includes(q));
+    }
+
+    const showFruits = currentFilter === 'all' || currentFilter === 'fruit';
+    const showVegs   = currentFilter === 'all' || currentFilter === 'vegetable';
+
+    document.getElementById('fruit-section').style.display = showFruits ? 'block' : 'none';
+    document.getElementById('veg-section').style.display   = showVegs  ? 'block' : 'none';
+
+    if (showFruits) renderGrid('fruit-grid', fruits);
+    if (showVegs)   renderGrid('veg-grid',   vegs);
+  }
+
+  function setFilter(f, el) {
+    currentFilter = f;
+    document.querySelectorAll('.filter-pill').forEach(p => p.classList.remove('active'));
+    el.classList.add('active');
+    renderAll();
+  }
+
+  function applySearch() { renderAll(); }
+
+  // ── Build a single produce card (NO nested template literals) ─────────────
+  function makeCard(p) {
+    const inCart     = cart[p.id];
+    const qty        = inCart ? inCart.qty_kg : 0.5;
+    const outOfStock = !p.is_available || p.stock_kg <= 0;
+    const lowStock   = !outOfStock && p.stock_kg <= 15;
+    const stockKg    = Number(p.stock_kg) || 0;
+    const maxQty     = Math.min(20, stockKg > 0 ? stockKg : 20);
+    const priceTotal = (p.price_per_kg * qty).toFixed(0);
+
+    // Wrapper div
+    const card = document.createElement('div');
+    card.className = 'produce-card' + (outOfStock ? ' produce-out-of-stock' : '');
+    card.id = 'pcard-' + p.id;
+
+    // Image area
+    const imgWrap = document.createElement('div');
+    imgWrap.className = 'produce-img-wrap';
+
+    const img = document.createElement('img');
+    img.src   = BASE + '/uploads/' + (p.image_filename || '');
+    img.alt   = p.name;
+    img.style.cssText = outOfStock ? 'filter:grayscale(0.55);' : '';
+    img.onerror = function() {
+      this.parentElement.innerHTML = '<div style="font-size:3.5rem;display:flex;align-items:center;justify-content:center;height:100%;">' +
+        (p.category === 'fruit' ? '🍎' : '🥦') + '</div>';
+    };
+    imgWrap.appendChild(img);
+
+    // Category tag
+    const catTag = document.createElement('span');
+    catTag.className = 'produce-category-tag ' + (p.category === 'fruit' ? 'tag-fruit' : 'tag-vegetable');
+    catTag.textContent = p.category === 'fruit' ? '🍎 Fruit' : '🥦 Veggie';
+    imgWrap.appendChild(catTag);
+
+    // Stock badge (separate element, not overlapping cat tag)
+    const badge = document.createElement('div');
+    badge.style.cssText = 'position:absolute;bottom:8px;left:8px;font-size:0.7rem;font-weight:700;padding:3px 10px;border-radius:50px;';
+    if (outOfStock) {
+      badge.style.background = '#ef4444';
+      badge.style.color = '#fff';
+      badge.textContent = '❌ Out of Stock';
+    } else if (lowStock) {
+      badge.style.background = '#f59e0b';
+      badge.style.color = '#fff';
+      badge.textContent = '⚠️ Low — ' + stockKg + 'kg';
+    } else {
+      badge.style.background = 'rgba(34,197,94,0.9)';
+      badge.style.color = '#fff';
+      badge.textContent = '✅ ' + stockKg + 'kg';
+    }
+    imgWrap.appendChild(badge);
+    card.appendChild(imgWrap);
+
+    // Info area
+    const info = document.createElement('div');
+    info.className = 'produce-info';
+
+    const name = document.createElement('div');
+    name.className = 'produce-name';
+    name.textContent = p.name;
+    info.appendChild(name);
+
+    if (p.description) {
+      const desc = document.createElement('div');
+      desc.className = 'produce-desc';
+      desc.textContent = p.description;
+      info.appendChild(desc);
+    }
+
+    const price = document.createElement('div');
+    price.className = 'produce-price';
+    price.innerHTML = 'PKR ' + p.price_per_kg + ' <span>/ kg</span>';
+    info.appendChild(price);
+
+    if (outOfStock) {
+      const msg = document.createElement('div');
+      msg.style.cssText = 'color:#ef4444;font-size:0.78rem;font-weight:600;margin-top:0.4rem;';
+      msg.textContent = 'Check back soon!';
+      info.appendChild(msg);
+    } else {
+      // Qty picker
+      const picker = document.createElement('div');
+      picker.className = 'weight-picker';
+      picker.innerHTML =
+        '<span class="weight-label">Qty:</span>' +
+        '<input type="number" class="weight-input" id="qty-' + p.id + '" value="' + qty +
+          '" min="0.5" max="' + maxQty + '" step="0.5">' +
+        '<span class="weight-unit">kg</span>';
+      picker.querySelector('input').addEventListener('change', function() {
+        updateQtyInput(p.id, this.value);
+      });
+      info.appendChild(picker);
+
+      // Price preview
+      const preview = document.createElement('div');
+      preview.id = 'price-preview-' + p.id;
+      preview.style.cssText = 'font-size:0.75rem;color:#22C55E;font-weight:600;margin-top:0.2rem;';
+      preview.textContent = 'Total: PKR ' + priceTotal;
+      info.appendChild(preview);
+    }
+
+    // Cart button
+    const btn = document.createElement('button');
+    btn.id = 'btn-' + p.id;
+    btn.className = 'add-produce-btn' + (inCart ? ' added' : '');
+    if (outOfStock) {
+      btn.disabled = true;
+      btn.style.opacity = '0.4';
+      btn.style.cursor  = 'not-allowed';
+      btn.textContent   = 'Out of Stock';
+    } else {
+      btn.textContent = inCart ? '✓ In Cart — Update' : '+ Add to Cart';
+      btn.addEventListener('click', function() { addToCart(p.id); });
+    }
+    info.appendChild(btn);
+    card.appendChild(info);
+
+    return card;
+  }
+
+  // ── Render grid using DOM (no innerHTML string concat) ────────────────────
+  function renderGrid(gridId, items) {
+    const el = document.getElementById(gridId);
+    el.innerHTML = '';
+    if (!items.length) {
+      el.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:2rem;color:var(--text-muted);">No items found</div>';
+      return;
+    }
+    items.forEach(p => el.appendChild(makeCard(p)));
+  }
+
+  // ── Cart logic ────────────────────────────────────────────────────────────
+  function updateQtyInput(id, val) {
+    const p   = allProduce.find(x => x.id === id);
+    if (!p) return;
+    const qty = Math.max(0.5, parseFloat(val) || 0.5);
+    const prev = document.getElementById('price-preview-' + id);
+    if (prev) prev.textContent = 'Total: PKR ' + (p.price_per_kg * qty).toFixed(0);
+    if (cart[id]) { cart[id].qty_kg = qty; updateCartUI(); }
+  }
+
+  function addToCart(id) {
+    const p = allProduce.find(x => x.id === id);
+    if (!p) return;
+    if (!p.is_available || p.stock_kg <= 0) { toast(p.name + ' is out of stock', 'error'); return; }
+    const qtyInput = document.getElementById('qty-' + id);
+    const qty = Math.max(0.5, parseFloat(qtyInput ? qtyInput.value : 0.5) || 0.5);
+    cart[id] = { item: p, qty_kg: qty };
+    updateCartUI();
+    const btn = document.getElementById('btn-' + id);
+    if (btn) { btn.textContent = '✓ In Cart — Update'; btn.classList.add('added'); }
+    toast(p.name + ' (' + qty + 'kg) added!');
+  }
+
+  function removeFromCart(id) {
+    delete cart[id];
+    updateCartUI();
+    const btn = document.getElementById('btn-' + id);
+    if (btn) { btn.textContent = '+ Add to Cart'; btn.classList.remove('added'); }
+  }
+
+  function updateCartUI() {
+    const items    = Object.values(cart);
+    const countEl  = document.getElementById('cart-count');
+    const bodyEl   = document.getElementById('cart-body');
+    const checkEl  = document.getElementById('cart-checkout');
+    const summaryEl= document.getElementById('cart-summary');
+
+    if (countEl) countEl.textContent = items.length;
+
+    if (!items.length) {
+      if (bodyEl) bodyEl.innerHTML =
+        '<div class="empty-cart-msg"><div class="empty-cart-icon">🥬</div><p>Your cart is empty</p><p style="font-size:0.8rem;margin-top:0.25rem;">Add fresh produce from the left!</p></div>';
+      if (checkEl) checkEl.style.display = 'none';
+      return;
+    }
+
+    const subtotal = items.reduce((s, {item, qty_kg}) => s + item.price_per_kg * qty_kg, 0);
+    const total    = subtotal + 50;
+
+    if (bodyEl) {
+      bodyEl.innerHTML = items.map(({item, qty_kg}) =>
+        '<div class="produce-cart-item">' +
+          '<img class="produce-cart-thumb" src="' + BASE + '/uploads/' + item.image_filename + '" alt="' + item.name + '" onerror="this.style.display=\'none\'">' +
+          '<div class="produce-cart-info">' +
+            '<div class="produce-cart-name">' + item.name + '</div>' +
+            '<div class="produce-cart-sub">' + qty_kg + 'kg × PKR ' + item.price_per_kg + '</div>' +
+          '</div>' +
+          '<span class="produce-cart-price">PKR ' + (item.price_per_kg * qty_kg).toFixed(0) + '</span>' +
+          '<button class="remove-btn" onclick="removeFromCart(' + item.id + ')">✕</button>' +
+        '</div>'
+      ).join('');
+    }
+
+    if (summaryEl) {
+      summaryEl.innerHTML =
+        '<div class="cart-row"><span>Subtotal (' + items.length + ' items)</span><span class="val">PKR ' + subtotal.toFixed(0) + '</span></div>' +
+        '<div class="cart-row"><span>Delivery Fee</span><span class="val">PKR 50</span></div>' +
+        '<div class="cart-row total"><span>Total</span><span class="val" style="color:#22C55E;">PKR ' + total.toFixed(0) + '</span></div>';
+    }
+    if (checkEl) checkEl.style.display = 'block';
+  }
+
+  // ── Place produce order ───────────────────────────────────────────────────
+  async function placeProduceOrder() {
+    const items = Object.values(cart);
+    if (!items.length) { toast('Cart is empty', 'error'); return; }
+    const addr = document.getElementById('delivery-addr').value.trim();
+    if (!addr) { toast('Please enter delivery address', 'error'); return; }
+    if (!validatePaymentFields()) return;
+
+    const subtotal = items.reduce((s, {item, qty_kg}) => s + item.price_per_kg * qty_kg, 0);
+
+    showLoading(true);
+    const res = await POST('/produce/order', {
+      customer_id:   user.user_id,
+      total_amount:  subtotal + 50,
+      delivery_fee:  50,
+      payment_method: document.getElementById('payment-method').value,
+      delivery_address: addr,
+      items: items.map(({item, qty_kg}) => ({
+        produce_id: item.id,
+        quantity_kg: qty_kg,
+        unit_price:  item.price_per_kg
+      }))
+    });
+    showLoading(false);
+
+    if (res && res.success) {
+      const summaryEl = document.getElementById('order-summary-modal');
+      if (summaryEl) {
+        summaryEl.innerHTML =
+          '<div style="font-size:0.85rem;">' +
+          items.map(({item, qty_kg}) =>
+            '<div style="display:flex;justify-content:space-between;padding:0.3rem 0;border-bottom:1px solid var(--border);">' +
+              '<span>' + item.name + ' (' + qty_kg + 'kg)</span>' +
+              '<span style="color:#22C55E;">PKR ' + (item.price_per_kg * qty_kg).toFixed(0) + '</span>' +
+            '</div>'
+          ).join('') +
+          '<div style="display:flex;justify-content:space-between;padding-top:0.5rem;font-weight:700;">' +
+            '<span>Total</span><span style="color:#22C55E;">PKR ' + (subtotal + 50).toFixed(0) + '</span>' +
+          '</div>' +
+          (res.points_earned ? '<div style="color:#a855f7;margin-top:0.5rem;">⭐ +' + res.points_earned + ' loyalty points earned!</div>' : '') +
+          '</div>';
+      }
+      cart = {};
+      updateCartUI();
+      await loadProduce();   // refresh stock levels
+      openModal('success-modal');
+    } else {
+      toast((res && res.error) ? res.error : 'Order failed — please try again', 'error');
+    }
+  }
+
+  // ── Payment field helpers ─────────────────────────────────────────────────
+  function togglePaymentFields() {
+    const method = document.getElementById('payment-method').value;
+    document.getElementById('mobile-payment-fields').style.display =
+      (method === 'JazzCash' || method === 'EasyPaisa') ? 'block' : 'none';
+    document.getElementById('card-payment-fields').style.display =
+      method === 'Card' ? 'block' : 'none';
+    const lbl = document.getElementById('mobile-label');
+    if (lbl) lbl.textContent = '📱 ' + method + ' Number';
+    ['mobile-error','card-number-error','card-expiry-error','card-cvv-error','card-name-error']
+      .forEach(id => { const e = document.getElementById(id); if (e) e.style.display='none'; });
+  }
+
+  function formatCardNumber(input) {
+    let v = input.value.replace(/\D/g,'').substring(0,16);
+    input.value = v.replace(/(.{4})/g,'$1 ').trim();
+  }
+
+  function formatExpiry(input) {
+    let v = input.value.replace(/\D/g,'').substring(0,4);
+    if (v.length >= 3) v = v.substring(0,2) + '/' + v.substring(2);
+    input.value = v;
+  }
+
+  function maskPhone(phone) {
+    if (!phone || phone.length < 4) return '***';
+    return phone.substring(0,4) + '***' + phone.substring(phone.length-3);
+  }
+
+  function validatePaymentFields() {
+    const method = document.getElementById('payment-method').value;
+    if (method === 'JazzCash' || method === 'EasyPaisa') {
+      const entered    = document.getElementById('mobile-payment-number').value.trim();
+      const userPhone  = (user.phone || '').replace(/\D/g,'');
+      const clean      = entered.replace(/\D/g,'');
+      const errEl      = document.getElementById('mobile-error');
+      if (!clean || clean.length < 10) {
+        errEl.textContent = '❌ Please enter your ' + method + ' number';
+        errEl.style.display = 'block';
+        document.getElementById('mobile-payment-number').focus();
+        return false;
+      }
+      if (userPhone && clean !== userPhone) {
+        errEl.textContent = '❌ Number must match your registered phone (' + maskPhone(userPhone) + ')';
+        errEl.style.display = 'block';
+        return false;
+      }
+      errEl.style.display = 'none';
+      return true;
+    }
+    if (method === 'Card') {
+      let valid = true;
+      const n = document.getElementById('card-number').value.replace(/\s/g,'');
+      const ne = document.getElementById('card-number-error');
+      if (n.length !== 16) { ne.style.display='block'; valid=false; } else ne.style.display='none';
+      const exp  = document.getElementById('card-expiry').value;
+      const expe = document.getElementById('card-expiry-error');
+      const m    = exp.match(/^(\d{2})\/(\d{2})$/);
+      if (!m || parseInt(m[1])>12||parseInt(m[1])<1) { expe.style.display='block'; valid=false; }
+      else {
+        const now=new Date(),yr=2000+parseInt(m[2]),mo=parseInt(m[1]);
+        if (yr<now.getFullYear()||(yr===now.getFullYear()&&mo<now.getMonth()+1))
+          { expe.textContent='❌ Card expired'; expe.style.display='block'; valid=false; }
+        else expe.style.display='none';
+      }
+      const cvv  = document.getElementById('card-cvv').value;
+      const cvve = document.getElementById('card-cvv-error');
+      if (cvv.length<3||cvv.length>4) { cvve.style.display='block'; valid=false; } else cvve.style.display='none';
+      const nm   = document.getElementById('card-name').value.trim();
+      const nme  = document.getElementById('card-name-error');
+      if (!nm) { nme.style.display='block'; valid=false; } else nme.style.display='none';
+      if (!valid) toast('Please fix card details', 'error');
+      return valid;
+    }
+    return true;
+  }
+
+  loadProduce();
+</script>
+</body>
+</html>

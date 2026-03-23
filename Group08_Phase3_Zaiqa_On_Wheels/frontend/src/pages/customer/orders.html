@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>QuickBite — My Orders</title>
+  <link rel="stylesheet" href="../../css/main.css">
+  <style>
+    .order-card { background:var(--card); border:1px solid var(--border); border-radius:16px; padding:1.5rem; margin-bottom:1rem; transition:border-color 0.2s; }
+    .order-card:hover { border-color:var(--primary); }
+    .order-header { display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:1rem; }
+    .order-id { font-family:'Syne',sans-serif; font-weight:700; font-size:1.05rem; }
+    .order-restaurant { color:var(--text-muted); font-size:0.85rem; }
+    .order-items-list { display:flex; flex-wrap:wrap; gap:0.5rem; margin-bottom:1rem; }
+    .order-item-tag { background:var(--bg3); border:1px solid var(--border); border-radius:6px; padding:0.25rem 0.6rem; font-size:0.8rem; }
+    .order-footer { display:flex; justify-content:space-between; align-items:center; }
+    .order-total { font-family:'Syne',sans-serif; font-weight:700; color:var(--primary); font-size:1.1rem; }
+    .track-btn { font-size:0.85rem; }
+    .progress-bar { display:flex; align-items:center; gap:0; margin:1rem 0; }
+    .progress-step { flex:1; display:flex; flex-direction:column; align-items:center; position:relative; }
+    .progress-step::before { content:''; position:absolute; top:14px; left:50%; width:100%; height:2px; background:var(--border); z-index:0; }
+    .progress-step:last-child::before { display:none; }
+    .step-dot { width:28px; height:28px; border-radius:50%; border:2px solid var(--border); background:var(--bg); display:flex; align-items:center; justify-content:center; font-size:0.7rem; z-index:1; transition:all 0.3s; }
+    .step-dot.done { border-color:var(--primary); background:var(--primary); color:white; }
+    .step-label { font-size:0.65rem; color:var(--text-muted); margin-top:0.3rem; text-align:center; }
+  </style>
+</head>
+<body>
+<nav class="navbar">
+  <a href="home.html" class="nav-logo">Quick<span>Bite</span></a>
+  <div class="nav-links">
+    <a href="home.html">🏠 Home</a>
+    <a href="orders.html" class="active">📦 My Orders</a>
+    <a href="chat.html">💬 Support</a>
+    <a href="loyalty.html">⭐ Loyalty</a>
+    <a href="profile.html">👤 Profile</a>
+  </div>
+  <div class="nav-user" id="nav-user"></div>
+  <button class="theme-toggle" id="theme-toggle-btn" onclick="toggleTheme()">☀️ Light</button>
+</nav>
+
+<div style="padding:2rem; max-width:900px; margin:0 auto;">
+  <div class="page-header">
+    <div class="page-title">My Orders</div>
+    <div class="page-subtitle">Track and manage your orders</div>
+  </div>
+
+  <div class="tabs">
+    <button class="tab-btn active" data-tab="active" data-group="orders" onclick="switchTab('active')">Active Orders</button>
+    <button class="tab-btn" data-tab="past" data-group="orders" onclick="switchTab('past')">Past Orders</button>
+  </div>
+
+  <div id="active-orders">
+    <div class="loader"><div class="spinner"></div></div>
+  </div>
+  <div id="past-orders" style="display:none;">
+    <div class="loader"><div class="spinner"></div></div>
+  </div>
+</div>
+
+<!-- Track Modal -->
+<div class="modal-overlay" id="track-modal">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">Order Tracking</div>
+      <button class="modal-close" onclick="closeModal('track-modal')">✕</button>
+    </div>
+    <div id="track-content"></div>
+  </div>
+</div>
+
+<!-- Chat with Rider Modal -->
+<div class="modal-overlay" id="rider-chat-modal">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">Chat with Rider</div>
+      <button class="modal-close" onclick="closeModal('rider-chat-modal')">✕</button>
+    </div>
+    <div class="chat-container">
+      <div class="chat-messages" id="rider-chat-messages"></div>
+      <div class="chat-input-area">
+        <input type="text" id="rider-chat-input" class="form-control" placeholder="Type a message...">
+        <button class="btn btn-primary" onclick="sendRiderMsg()">Send</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Review Modal -->
+<div class="modal-overlay" id="review-modal">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">Leave a Review</div>
+      <button class="modal-close" onclick="closeModal('review-modal')">✕</button>
+    </div>
+    <input type="hidden" id="review-restaurant-id">
+    <input type="hidden" id="review-order-id">
+    <div class="form-group">
+      <label class="form-label">Rating</label>
+      <div id="star-rating" style="display:flex;gap:0.5rem;font-size:2rem;cursor:pointer;">
+        <span onclick="setRating(1)" data-star="1">☆</span>
+        <span onclick="setRating(2)" data-star="2">☆</span>
+        <span onclick="setRating(3)" data-star="3">☆</span>
+        <span onclick="setRating(4)" data-star="4">☆</span>
+        <span onclick="setRating(5)" data-star="5">☆</span>
+      </div>
+      <input type="hidden" id="review-rating" value="0">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Comment (optional)</label>
+      <textarea id="review-comment" class="form-control" rows="3" placeholder="Share your experience..."></textarea>
+    </div>
+    <button class="btn btn-primary btn-full" onclick="submitReview()">Submit Review</button>
+  </div>
+</div>
+
+<div id="toast"></div>
+<script src="../../js/shared.js"></script>
+<script>
+  const user = requireAnyAuth('customer','admin');
+  renderUserBadge('nav-user');
+
+  const ACTIVE = ['Pending','Confirmed','Preparing','Out for Delivery'];
+  const statusSteps = ['Pending','Confirmed','Preparing','Out for Delivery','Delivered'];
+  let currentRiderChatUser = null;
+  let allOrders = [];
+  let chatPoll = null;
+
+  async function loadOrders() {
+    const data = await GET(`/orders/customer/${user.user_id}`);
+    allOrders = data || [];
+    renderOrders();
+  }
+
+  function renderOrders() {
+    const active = allOrders.filter(o => ACTIVE.includes(o.status));
+    const past = allOrders.filter(o => !ACTIVE.includes(o.status));
+
+    document.getElementById('active-orders').innerHTML = active.length ? active.map(orderCard).join('') :
+      `<div class="empty-state"><div class="empty-icon">🛵</div><p class="empty-text">No active orders</p><a href="home.html" class="btn btn-primary">Order Now</a></div>`;
+
+    document.getElementById('past-orders').innerHTML = past.length ? past.map(orderCard).join('') :
+      `<div class="empty-state"><div class="empty-icon">📦</div><p class="empty-text">No past orders yet</p></div>`;
+  }
+
+  function orderCard(o) {
+    const idx = statusSteps.indexOf(o.status);
+    const steps = statusSteps.map((s,i) => `<div class="progress-step"><div class="step-dot ${i<=idx?'done':''}">${i<=idx?'✓':i+1}</div><div class="step-label">${s.replace('Out for ','')}</div></div>`).join('');
+    const isPast = !ACTIVE.includes(o.status);
+    return `
+    <div class="order-card" id="order-${o.id}">
+      <div class="order-header">
+        <div>
+          <div class="order-id">Order #${o.id}</div>
+          <div class="order-restaurant">${o.order_type==='produce'?'🥬':'📍'} ${o.restaurant_name}</div>
+        </div>
+        <div style="text-align:right;">
+          ${statusBadge(o.status)}
+          <div style="font-size:0.75rem;color:var(--text-muted);margin-top:0.3rem;">${timeAgo(o.created_at)}</div>
+        </div>
+      </div>
+      <div class="order-items-list">${(o.items||[]).map(i=>`<span class="order-item-tag">${i.name} ${o.order_type==='produce' ? i.quantity_kg+'kg' : 'x'+i.quantity}</span>`).join('')}</div>
+      ${!isPast ? `<div class="progress-bar">${steps}</div>` : ''}
+      <div class="order-footer">
+        <div class="order-total">PKR ${o.total_amount?.toFixed(0)}</div>
+        <div style="display:flex;gap:0.5rem;">
+          ${o.status==='Out for Delivery' && o.rider_id ? `<button class="btn btn-outline btn-sm track-btn" onclick="openRiderChat(${o.rider_id}, ${o.id})">💬 Chat Rider</button>` : ''}
+          ${o.status==='Delivered' ? `<button class="btn btn-outline btn-sm" onclick="openReview(${o.restaurant_id},${o.id})">⭐ Review</button>` : ''}
+          <a class="btn btn-sm" href="track.html?id=${o.id}${o.order_type==='produce'?'&type=produce':''}" style="background:var(--primary);color:white;text-decoration:none;">🛵 Live Track</a>
+        </div>
+      </div>
+    </div>`;
+  }
+
+  function switchTab(tab) {
+    document.querySelectorAll('.tab-btn').forEach((b,i) => b.classList.toggle('active', (i===0&&tab==='active')||(i===1&&tab==='past')));
+    document.getElementById('active-orders').style.display = tab==='active'?'block':'none';
+    document.getElementById('past-orders').style.display = tab==='past'?'block':'none';
+  }
+
+  function trackOrder(id) {
+    const o = allOrders.find(x => x.id===id);
+    if (!o) return;
+    const idx = statusSteps.indexOf(o.status);
+    const steps = statusSteps.map((s,i) => `<div class="progress-step"><div class="step-dot ${i<=idx?'done':''}">${i<=idx?'✓':''}</div><div class="step-label">${s}</div></div>`).join('');
+    document.getElementById('track-content').innerHTML = `
+      <div style="margin-bottom:1rem;">${statusBadge(o.status)}</div>
+      <div class="progress-bar">${steps}</div>
+      <div style="margin-top:1.5rem;padding:1rem;background:var(--bg3);border-radius:12px;">
+        <div style="display:flex;justify-content:space-between;margin-bottom:0.5rem;"><span style="color:var(--text-muted)">Restaurant</span><span>${o.restaurant_name}</span></div>
+        <div style="display:flex;justify-content:space-between;margin-bottom:0.5rem;"><span style="color:var(--text-muted)">Estimated Time</span><span>~${o.estimated_time} min</span></div>
+        <div style="display:flex;justify-content:space-between;"><span style="color:var(--text-muted)">Total</span><span style="color:var(--primary);font-weight:700;">PKR ${o.total_amount?.toFixed(0)}</span></div>
+      </div>`;
+    openModal('track-modal');
+  }
+
+  async function openRiderChat(riderId, orderId) {
+    const orderObj = allOrders.find(o=>o.id===orderId);
+    currentRiderChatUser = riderId;
+    document.getElementById('rider-chat-messages').innerHTML = '<div class="loader"><div class="spinner"></div></div>';
+    openModal('rider-chat-modal');
+    await loadRiderChatMsgs();
+    chatPoll = setInterval(loadRiderChatMsgs, 3000);
+  }
+
+  async function loadRiderChatMsgs() {
+    if (!currentRiderChatUser) return;
+    const data = await GET(`/messages/${user.user_id}/${currentRiderChatUser}`);
+    const box = document.getElementById('rider-chat-messages');
+    if (data) {
+      box.innerHTML = data.length ? data.map(m => `
+        <div>
+          <div class="message-bubble ${m.sender_id===user.user_id?'sent':'received'}">${m.message}</div>
+          <div style="text-align:${m.sender_id===user.user_id?'right':'left'}" class="message-time">${timeAgo(m.created_at)}</div>
+        </div>`).join('') : '<div class="empty-state"><div class="empty-icon">💬</div><p class="empty-text">Say hello to your rider!</p></div>';
+      box.scrollTop = box.scrollHeight;
+    }
+  }
+
+  async function sendRiderMsg() {
+    const inp = document.getElementById('rider-chat-input');
+    if (!inp.value.trim() || !currentRiderChatUser) return;
+    await POST('/messages', { sender_id:user.user_id, receiver_id:currentRiderChatUser, message:inp.value.trim() });
+    inp.value = '';
+    await loadRiderChatMsgs();
+  }
+
+  document.getElementById('rider-chat-input')?.addEventListener('keydown', e => { if(e.key==='Enter') sendRiderMsg(); });
+  document.getElementById('rider-chat-modal')?.addEventListener('click', e => { if(e.target.classList.contains('modal-overlay')||e.target.classList.contains('modal-close')){ clearInterval(chatPoll); currentRiderChatUser=null; } });
+
+  function openReview(rid, oid) {
+    document.getElementById('review-restaurant-id').value = rid;
+    document.getElementById('review-order-id').value = oid;
+    document.getElementById('review-rating').value = 0;
+    document.querySelectorAll('#star-rating span').forEach(s => s.textContent='☆');
+    openModal('review-modal');
+  }
+
+  function setRating(n) {
+    document.getElementById('review-rating').value = n;
+    document.querySelectorAll('#star-rating span').forEach((s,i) => s.textContent = i<n ? '⭐' : '☆');
+  }
+
+  async function submitReview() {
+    const rating = parseInt(document.getElementById('review-rating').value);
+    if (!rating) { toast('Please select a rating', 'error'); return; }
+    const res = await POST('/reviews', {
+      customer_id: user.user_id,
+      restaurant_id: parseInt(document.getElementById('review-restaurant-id').value),
+      order_id: parseInt(document.getElementById('review-order-id').value),
+      rating,
+      comment: document.getElementById('review-comment').value
+    });
+    if (res?.success) { toast('Review submitted!'); closeModal('review-modal'); }
+    else toast('Failed', 'error');
+  }
+
+  // Auto-refresh active orders every 15s
+  loadOrders();
+  setInterval(loadOrders, 15000);
+</script>
+</body>
+</html>
