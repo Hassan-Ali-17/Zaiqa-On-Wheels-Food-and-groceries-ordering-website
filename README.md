@@ -357,7 +357,7 @@ This project demonstrates several core computer science concepts:
  
 | Document | Location |
 |---|---|
-| Swagger API specification | `docs/swagger.yaml` |
+| Swagger API specification | [docs/swagger.yaml](https://github.com/Hassan-Ali-17/Zaiqa-On-Wheels-Food-and-groceries-ordering-website/blob/main/Group08_Phase3_Zaiqa_On_Wheels/docs/swagger.yaml) |
 | Backend architecture explanation | [Backend_Explanation.pdf](https://github.com/Hassan-Ali-17/Zaiqa-On-Wheels-Food-and-groceries-ordering-website/blob/main/Group08_Phase3_Zaiqa_On_Wheels/docs/Backend_Explanation.pdf) |
 | ER Diagram | [Zaiqa-On-Wheels ERD](https://github.com/Hassan-Ali-17/Zaiqa-On-Wheels-Food-and-groceries-ordering-website/blob/main/Zaiqa-On-Wheels-Food-and-groceries-ordering-website.drawio.pdf) |
 | UML Class Diagram | `docs/UML_ClassDiagram.drawio` |
