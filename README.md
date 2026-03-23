@@ -11,10 +11,6 @@ The system demonstrates a complete end-to-end web solution, integrating:
 - Transaction control
 
 > Built using **Python (Flask)**, **HTML**, **CSS**, **JavaScript**, and **SQLite** — showcasing practical concepts from Web Development and Database Management Systems (DBMS).
-
-> **Course:** Advanced Database Management — CS 4th Semester (A & B)
-> **Phase 3 Deadline:** 25 March 2026
-
 ---
 
 ## 👨‍💻 Contributors
