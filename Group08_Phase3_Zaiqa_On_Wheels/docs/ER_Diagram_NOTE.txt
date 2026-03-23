@@ -1,0 +1,11 @@
+The ER diagram is provided as ER_Diagram.drawio (importable into draw.io / diagrams.net).
+To export as PDF:
+  1. Open ER_Diagram.drawio at https://app.diagrams.net
+  2. File → Export As → PDF
+  3. Save as ER_Diagram.pdf
+
+The Crow's Foot ERD covers all 13 tables with proper notation:
+users, riders, restaurants, categories, menu_items,
+orders, order_items, produce_items, produce_orders,
+produce_order_items, messages, reviews, audit_log,
+promo_codes, loyalty_points, loyalty_transactions

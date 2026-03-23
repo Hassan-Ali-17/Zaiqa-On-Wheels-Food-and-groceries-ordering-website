@@ -1,0 +1,4 @@
+flask>=3.0.0
+flask-cors>=4.0.0
+# JWT: stdlib hmac+hashlib (no PyJWT needed)
+# Passwords: stdlib hashlib.pbkdf2_hmac (no bcrypt needed)

@@ -1,0 +1,801 @@
+openapi: 3.0.3
+info:
+  title: QuickBite Food Delivery API
+  description: |
+    REST API for QuickBite — a multi-role food delivery platform (Phase 2).
+    
+    ## Authentication
+    Most endpoints require a JWT Bearer token obtained from POST /api/v1/login.
+    Include it as: `Authorization: Bearer <token>`
+    
+    ## Roles
+    - **customer** — browse, order, loyalty
+    - **manager** — manage own restaurant/menu
+    - **rider** — accept & deliver orders
+    - **admin** — full platform control
+    
+    ## Versioning
+    All endpoints are available at both `/api/v1/...` (current) and `/api/...` (legacy alias).
+    
+    ## Transaction Behaviour
+    POST /api/v1/orders and POST /api/v1/produce/order use explicit BEGIN/COMMIT/ROLLBACK.
+    A 400 response means the entire transaction was rolled back with no data changes.
+  version: "2.0.0"
+  contact:
+    name: QuickBite Team
+
+servers:
+  - url: http://127.0.0.1:5000/api/v1
+    description: Local development (versioned)
+  - url: http://127.0.0.1:5000/api
+    description: Local development (legacy alias)
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT issued by POST /api/v1/login. Include as Authorization header.
+
+  schemas:
+    Error:
+      type: object
+      properties:
+        error: { type: string }
+        code: { type: string, enum: [UNAUTHORIZED, FORBIDDEN] }
+
+    User:
+      type: object
+      properties:
+        id: { type: integer }
+        name: { type: string }
+        email: { type: string }
+        phone: { type: string }
+        role: { type: string, enum: [customer, rider, admin, manager] }
+        created_at: { type: string, format: date-time }
+
+    LoginResponse:
+      type: object
+      properties:
+        success: { type: boolean }
+        user_id: { type: integer }
+        role: { type: string }
+        name: { type: string }
+        email: { type: string }
+        token: { type: string, description: "JWT — store and send as Authorization: Bearer <token>" }
+        rider_status: { type: string, description: "Only for rider role" }
+        rider_id: { type: integer, description: "Only for rider role" }
+        restaurant_id: { type: integer, description: "Only for manager role" }
+
+    Restaurant:
+      type: object
+      properties:
+        id: { type: integer }
+        name: { type: string }
+        cuisine: { type: string }
+        location: { type: string }
+        phone: { type: string }
+        rating: { type: number }
+        delivery_time: { type: integer }
+        is_open: { type: integer }
+        status: { type: string, enum: [pending, approved, rejected] }
+        image_filename: { type: string }
+
+    MenuItem:
+      type: object
+      properties:
+        id: { type: integer }
+        name: { type: string }
+        description: { type: string }
+        price: { type: number }
+        is_available: { type: integer }
+        category_id: { type: integer }
+        restaurant_id: { type: integer }
+
+    OrderItem:
+      type: object
+      required: [item_id, quantity, unit_price]
+      properties:
+        item_id: { type: integer }
+        quantity: { type: integer, minimum: 1 }
+        unit_price: { type: number }
+
+    Order:
+      type: object
+      properties:
+        id: { type: integer }
+        customer_id: { type: integer }
+        restaurant_id: { type: integer }
+        rider_id: { type: integer }
+        status: { type: string }
+        total_amount: { type: number }
+        delivery_fee: { type: number }
+        platform_fee: { type: number }
+        payment_method: { type: string }
+        delivery_address: { type: string }
+        created_at: { type: string }
+
+    PromoCode:
+      type: object
+      properties:
+        id: { type: integer }
+        code: { type: string }
+        discount_type: { type: string, enum: [percent, flat] }
+        discount_value: { type: number }
+        min_order: { type: number }
+        max_uses: { type: integer }
+        used_count: { type: integer }
+        is_active: { type: integer }
+
+    LoyaltyPoints:
+      type: object
+      properties:
+        customer_id: { type: integer }
+        total_points: { type: integer }
+        lifetime_points: { type: integer }
+        transactions: { type: array, items: { type: object } }
+
+paths:
+  # ── AUTH ─────────────────────────────────────────────────────────────────
+  /signup:
+    post:
+      tags: [Auth]
+      summary: Register a new user
+      description: Creates user account. Returns JWT token on success.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, email, password, role]
+              properties:
+                name: { type: string, example: "Ali Hassan" }
+                email: { type: string, example: "ali@example.com" }
+                phone: { type: string, example: "03001234567" }
+                password: { type: string, example: "securepass123" }
+                role: { type: string, enum: [customer, rider, manager], example: "customer" }
+                vehicle_type: { type: string, description: "Required if role=rider" }
+                license_plate: { type: string, description: "Required if role=rider" }
+      responses:
+        "200":
+          description: Account created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginResponse'
+              example:
+                success: true
+                user_id: 42
+                role: customer
+                token: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+        "400":
+          description: Email already exists
+          content:
+            application/json:
+              example: { success: false, error: "Email already exists" }
+
+  /login:
+    post:
+      tags: [Auth]
+      summary: Authenticate and obtain JWT
+      description: |
+        Verifies credentials using PBKDF2-SHA256 password comparison.
+        Returns a signed JWT (HS256, 24h expiry) containing user_id and role.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password]
+              properties:
+                email: { type: string, example: "ahsen@gmail.com" }
+                password: { type: string, example: "hassan" }
+      responses:
+        "200":
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginResponse'
+        "401":
+          description: Invalid credentials
+
+  /logout:
+    post:
+      tags: [Auth]
+      summary: Logout (invalidate session)
+      description: JWT is stateless; client should discard token. Server logs the event.
+      security:
+        - BearerAuth: []
+      responses:
+        "200":
+          description: Logged out
+          content:
+            application/json:
+              example: { success: true }
+
+  # ── RESTAURANTS ──────────────────────────────────────────────────────────
+  /restaurants:
+    get:
+      tags: [Restaurants]
+      summary: List all approved, open restaurants
+      responses:
+        "200":
+          description: List of restaurants
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Restaurant'
+
+  /restaurants/{id}:
+    get:
+      tags: [Restaurants]
+      summary: Get restaurant detail with menu
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        "200":
+          description: Restaurant with categories and menu items
+        "404":
+          description: Restaurant not found
+
+  # ── ORDERS ───────────────────────────────────────────────────────────────
+  /orders:
+    post:
+      tags: [Orders]
+      summary: Place a restaurant order
+      description: |
+        **TRANSACTIONAL** — uses explicit BEGIN/COMMIT/ROLLBACK.
+        
+        Transaction steps:
+        1. INSERT order header
+        2. Validate & INSERT each order item (checks restaurant ownership)
+        3. Validate promo code (if provided) and increment used_count
+        4. Ensure loyalty_points row exists for customer
+        5. Deduct redeemed loyalty points (with balance check)
+        6. Award earned loyalty points (PKR 100 = 1 point)
+        7. COMMIT all or ROLLBACK on any failure
+        
+        **Rollback scenario**: If customer applies a promo code that just hit max_uses
+        between validation and order placement, the entire order is rolled back and
+        an ORDER_ROLLBACK audit entry is created.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [customer_id, restaurant_id, items, subtotal]
+              properties:
+                customer_id: { type: integer }
+                restaurant_id: { type: integer }
+                items:
+                  type: array
+                  items:
+                    $ref: '#/components/schemas/OrderItem'
+                subtotal: { type: number }
+                delivery_fee: { type: number, default: 50 }
+                promo_code: { type: string }
+                promo_discount: { type: number, default: 0 }
+                loyalty_discount: { type: number, default: 0 }
+                payment_method: { type: string, default: "Cash on Delivery" }
+                delivery_address: { type: string }
+                special_instructions: { type: string }
+            example:
+              customer_id: 5
+              restaurant_id: 1
+              subtotal: 1100
+              delivery_fee: 50
+              promo_code: "HASSAN"
+              promo_discount: 110
+              loyalty_discount: 0
+              payment_method: "Cash on Delivery"
+              delivery_address: "DHA Phase 5, Lahore"
+              items:
+                - { item_id: 101, quantity: 2, unit_price: 550 }
+      responses:
+        "200":
+          description: Order placed successfully (transaction committed)
+          content:
+            application/json:
+              example:
+                success: true
+                order_id: 78
+                total: 1095.0
+                points_earned: 10
+        "400":
+          description: Transaction rolled back — business rule violation
+          content:
+            application/json:
+              example:
+                success: false
+                error: "Promo code 'HASSAN' has reached its usage limit"
+        "500":
+          description: Transaction rolled back — database error
+
+  /orders/customer/{cid}:
+    get:
+      tags: [Orders]
+      summary: Get all orders for a customer
+      parameters:
+        - name: cid
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        "200":
+          description: List of customer orders including produce orders
+
+  /orders/{oid}:
+    get:
+      tags: [Orders]
+      summary: Get order detail by ID
+      parameters:
+        - name: oid
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        "200":
+          description: Order detail with items
+
+  /orders/{oid}/status:
+    put:
+      tags: [Orders]
+      summary: Update order status
+      parameters:
+        - name: oid
+          in: path
+          required: true
+          schema: { type: integer }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            example: { status: "Confirmed", user_id: 1 }
+      responses:
+        "200":
+          description: Status updated
+
+  /orders/available:
+    get:
+      tags: [Orders]
+      summary: List orders available for rider pickup
+      responses:
+        "200":
+          description: Confirmed orders without a rider
+
+  /orders/{oid}/assign:
+    put:
+      tags: [Orders]
+      summary: Rider accepts and gets assigned to order
+      parameters:
+        - name: oid
+          in: path
+          required: true
+          schema: { type: integer }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            example: { rider_id: 3, user_id: 7 }
+      responses:
+        "200":
+          description: Rider assigned, status set to Out for Delivery
+
+  /orders/rider/{rid}:
+    get:
+      tags: [Orders]
+      summary: Get all orders assigned to a rider
+      parameters:
+        - name: rid
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        "200":
+          description: Rider's order history
+
+  # ── PROMO CODES ──────────────────────────────────────────────────────────
+  /promo/validate:
+    post:
+      tags: [Promo Codes]
+      summary: Validate a promo code
+      description: Always returns HTTP 200 (including for invalid codes) to avoid CORS issues with error status codes.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            example: { code: "HASSAN", order_total: 1000 }
+      responses:
+        "200":
+          description: Validation result
+          content:
+            application/json:
+              examples:
+                valid:
+                  value:
+                    valid: true
+                    code: "HASSAN"
+                    discount_type: "percent"
+                    discount_value: 10
+                    discount_amount: 100
+                    message: "🎉 10% off applied! You save PKR 100"
+                invalid:
+                  value:
+                    valid: false
+                    error: '"BADCODE" is not a valid promo code'
+
+  /admin/promos:
+    get:
+      tags: [Promo Codes]
+      summary: List all promo codes (admin only)
+      security:
+        - BearerAuth: []
+      responses:
+        "200":
+          description: List of promo codes
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/PromoCode'
+        "401":
+          description: Authentication required
+          content:
+            application/json:
+              example: { error: "Authentication required", code: "UNAUTHORIZED" }
+        "403":
+          description: Not admin
+          content:
+            application/json:
+              example: { error: "Access denied — insufficient role", code: "FORBIDDEN", required: ["admin"], your_role: "customer" }
+
+    post:
+      tags: [Promo Codes]
+      summary: Create a new promo code (admin only)
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [code, discount_value]
+              properties:
+                code: { type: string, example: "SUMMER25" }
+                discount_type: { type: string, enum: [percent, flat], default: percent }
+                discount_value: { type: number, example: 25 }
+                min_order: { type: number, default: 0 }
+                max_uses: { type: integer, default: 100 }
+                admin_id: { type: integer }
+      responses:
+        "200":
+          description: Promo code created
+          content:
+            application/json:
+              example: { success: true }
+        "400":
+          description: Code already exists
+          content:
+            application/json:
+              example: { success: false, error: "Code already exists" }
+        "401":
+          description: Authentication required
+        "403":
+          description: Admin role required
+
+  /admin/promos/{pid}:
+    put:
+      tags: [Promo Codes]
+      summary: Toggle promo code active/inactive (admin only)
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: pid
+          in: path
+          required: true
+          schema: { type: integer }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            example: { is_active: 0 }
+      responses:
+        "200":
+          description: Updated
+        "401":
+          description: Authentication required
+        "403":
+          description: Admin role required
+
+    delete:
+      tags: [Promo Codes]
+      summary: Delete a promo code (admin only)
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: pid
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        "200":
+          description: Deleted
+        "401":
+          description: Authentication required
+        "403":
+          description: Admin role required
+
+  # ── LOYALTY ──────────────────────────────────────────────────────────────
+  /loyalty/{cid}:
+    get:
+      tags: [Loyalty]
+      summary: Get customer loyalty points and transaction history
+      parameters:
+        - name: cid
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        "200":
+          description: Loyalty data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoyaltyPoints'
+
+  /loyalty/earn:
+    post:
+      tags: [Loyalty]
+      summary: Manually award loyalty points
+      requestBody:
+        required: true
+        content:
+          application/json:
+            example: { customer_id: 5, order_amount: 1500, order_id: 78 }
+      responses:
+        "200":
+          description: Points awarded
+          content:
+            application/json:
+              example: { success: true, points_earned: 15 }
+
+  /loyalty/redeem:
+    post:
+      tags: [Loyalty]
+      summary: Redeem loyalty points for a discount
+      requestBody:
+        required: true
+        content:
+          application/json:
+            example: { customer_id: 5, points: 50, order_id: 78 }
+      responses:
+        "200":
+          description: Points redeemed
+          content:
+            application/json:
+              example: { success: true, discount: 50 }
+        "400":
+          description: Insufficient points
+          content:
+            application/json:
+              example: { success: false, error: "Insufficient points" }
+
+  # ── ADMIN ────────────────────────────────────────────────────────────────
+  /admin/stats:
+    get:
+      tags: [Admin]
+      summary: Platform-wide statistics (admin only)
+      security:
+        - BearerAuth: []
+      responses:
+        "200":
+          description: Stats object
+          content:
+            application/json:
+              example:
+                total_orders: 248
+                total_users: 150
+                total_riders: 12
+                pending_riders: 2
+                total_restaurants: 20
+                revenue: 485000
+                platform_revenue: 24250
+        "401":
+          description: Authentication required
+        "403":
+          description: Admin role required
+
+  /admin/orders:
+    get:
+      tags: [Admin]
+      summary: All orders across platform (admin only)
+      security:
+        - BearerAuth: []
+      responses:
+        "200":
+          description: All orders including produce orders
+        "401":
+          description: Authentication required
+        "403":
+          description: Admin role required
+
+  /admin/users:
+    get:
+      tags: [Admin]
+      summary: All registered users (admin only)
+      security:
+        - BearerAuth: []
+      responses:
+        "200":
+          description: List of users
+        "401":
+          description: Authentication required
+        "403":
+          description: Admin role required
+
+  /admin/riders:
+    get:
+      tags: [Admin]
+      summary: All riders and their status (admin only)
+      security:
+        - BearerAuth: []
+      responses:
+        "200":
+          description: List of riders with user info
+        "401":
+          description: Authentication required
+        "403":
+          description: Admin role required
+
+  /admin/riders/{rid}/approve:
+    put:
+      tags: [Admin]
+      summary: Approve or reject a rider (admin only)
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: rid
+          in: path
+          required: true
+          schema: { type: integer }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            example: { status: "approved", admin_id: 1 }
+      responses:
+        "200":
+          description: Rider status updated
+        "401":
+          description: Authentication required
+        "403":
+          description: Admin role required
+
+  /admin/audit:
+    get:
+      tags: [Admin]
+      summary: Audit log of all platform events (admin only)
+      security:
+        - BearerAuth: []
+      responses:
+        "200":
+          description: Last 100 audit log entries
+        "401":
+          description: Authentication required
+        "403":
+          description: Admin role required
+
+  # ── PRODUCE ──────────────────────────────────────────────────────────────
+  /produce:
+    get:
+      tags: [Produce]
+      summary: List available produce items
+      parameters:
+        - name: category
+          in: query
+          schema: { type: string, enum: [fruit, vegetable] }
+      responses:
+        "200":
+          description: List of produce items
+
+  /produce/order:
+    post:
+      tags: [Produce]
+      summary: Place a fresh produce order
+      description: |
+        **TRANSACTIONAL** — same BEGIN/COMMIT/ROLLBACK pattern as /orders.
+        Steps: insert header → validate items → promo check → loyalty row → 
+        deduct redemption → award points → COMMIT or ROLLBACK.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            example:
+              customer_id: 5
+              total_amount: 780
+              delivery_fee: 50
+              payment_method: "Cash on Delivery"
+              delivery_address: "Gulberg, Lahore"
+              items:
+                - { produce_id: 3, quantity_kg: 2.0, unit_price: 390 }
+      responses:
+        "200":
+          description: Produce order placed (committed)
+        "400":
+          description: Transaction rolled back
+
+  # ── MESSAGES ─────────────────────────────────────────────────────────────
+  /messages:
+    post:
+      tags: [Messages]
+      summary: Send a message
+      requestBody:
+        required: true
+        content:
+          application/json:
+            example: { sender_id: 5, receiver_id: 1, order_id: 78, message: "Where is my order?" }
+      responses:
+        "200":
+          description: Message sent
+
+  /messages/{uid1}/{uid2}:
+    get:
+      tags: [Messages]
+      summary: Get conversation between two users
+      parameters:
+        - name: uid1
+          in: path
+          required: true
+          schema: { type: integer }
+        - name: uid2
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        "200":
+          description: List of messages
+
+  # ── REVIEWS ──────────────────────────────────────────────────────────────
+  /reviews:
+    post:
+      tags: [Reviews]
+      summary: Add a restaurant review
+      description: Atomically inserts review and recalculates restaurant average rating.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            example:
+              customer_id: 5
+              restaurant_id: 1
+              order_id: 78
+              rating: 5
+              comment: "Excellent food and fast delivery!"
+      responses:
+        "200":
+          description: Review added
+
+  /reviews/restaurant/{rid}:
+    get:
+      tags: [Reviews]
+      summary: Get reviews for a restaurant
+      parameters:
+        - name: rid
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        "200":
+          description: List of reviews with customer names
