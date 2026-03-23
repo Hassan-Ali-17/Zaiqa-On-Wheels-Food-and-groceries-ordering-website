@@ -231,7 +231,7 @@ http://127.0.0.1:5000
 
 | Role | Email | Password | Capabilities |
 |---|---|---|---|
-| **Admin** | admin@quickbite.com | admin123 | Full platform control — users, restaurants, riders, promos, analytics, audit log |
+| **Admin** | ahsen@gmail.com | hint**24040 name** | Full platform control — users, restaurants, riders, promos, analytics, audit log |
 | **Customer** | customer@quickbite.com | test123 | Browse, order food & produce, track, chat, loyalty points |
 | **Manager** | manager@quickbite.com | test123 | Manage own restaurant menu, categories, view orders and stats |
 | **Rider** | rider@quickbite.com | test123 | Accept orders, update delivery status, chat, view earnings |
